@@ -6,106 +6,129 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6EA587A32FC2D65100B05C08 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EA587A12FC2D65100B05C08 /* ContentView.swift */; };
+		6EA587A42FC2D65100B05C08 /* UtakataDiaryApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EA587A22FC2D65100B05C08 /* UtakataDiaryApp.swift */; };
+		6EA587A52FC2D65100B05C08 /* Omikuji.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EA587A62FC2D65100B05C08 /* Omikuji.swift */; };
+		6EE34EFB2FC6B283008EF693 /* Diary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFA2FC6B283008EF693 /* Diary.swift */; };
+		6EE34EFD2FC6B2B6008EF693 /* Memory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFC2FC6B2B6008EF693 /* Memory.swift */; };
+		6EE34EFF2FC9B52F008EF693 /* Setting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFE2FC9B52F008EF693 /* Setting.swift */; };
+		8A7F5B882C0A000100000001 /* Assets.xcassets in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A7F5B872C0A000100000001 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
-		6EA587AE2FC2D6F900B05C08 /* UtakataDiary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UtakataDiary.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6EA587A12FC2D65100B05C08 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		6EA587A22FC2D65100B05C08 /* UtakataDiaryApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtakataDiaryApp.swift; sourceTree = "<group>"; };
+		6EA587A62FC2D65100B05C08 /* Omikuji.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Omikuji.swift; sourceTree = "<group>"; };
+		6EE34EFA2FC6B283008EF693 /* Diary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diary.swift; sourceTree = "<group>"; };
+		6EE34EFC2FC6B2B6008EF693 /* Memory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Memory.swift; sourceTree = "<group>"; };
+		6EE34EFE2FC9B52F008EF693 /* Setting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Setting.swift; sourceTree = "<group>"; };
+		8A7F5B7A2C0A000100000001 /* UtakataDiary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UtakataDiary.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A7F5B872C0A000100000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		6EA587B02FC2D6F900B05C08 /* UtakataDiary */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = UtakataDiary;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
-
 /* Begin PBXFrameworksBuildPhase section */
-		6EA587AB2FC2D6F900B05C08 /* Frameworks */ = {
+		8A7F5B772C0A000100000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A7F5B882C0A000100000001 /* Assets.xcassets in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		6EA587A52FC2D6F900B05C08 = {
+		8A7F5B712C0A000100000001 = {
 			isa = PBXGroup;
 			children = (
-				6EA587B02FC2D6F900B05C08 /* UtakataDiary */,
-				6EA587AF2FC2D6F900B05C08 /* Products */,
+				8A7F5B822C0A000100000001 /* UtakataDiary */,
+				8A7F5B7B2C0A000100000001 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		6EA587AF2FC2D6F900B05C08 /* Products */ = {
+		8A7F5B7B2C0A000100000001 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				6EA587AE2FC2D6F900B05C08 /* UtakataDiary.app */,
+				8A7F5B7A2C0A000100000001 /* UtakataDiary.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		8A7F5B822C0A000100000001 /* UtakataDiary */ = {
+			isa = PBXGroup;
+			children = (
+				6EA587A12FC2D65100B05C08 /* ContentView.swift */,
+				6EE34EFE2FC9B52F008EF693 /* Setting.swift */,
+				6EE34EFC2FC6B2B6008EF693 /* Memory.swift */,
+				6EE34EFA2FC6B283008EF693 /* Diary.swift */,
+				6EA587A62FC2D65100B05C08 /* Omikuji.swift */,
+				6EA587A22FC2D65100B05C08 /* UtakataDiaryApp.swift */,
+				8A7F5B872C0A000100000001 /* Assets.xcassets */,
+			);
+			path = UtakataDiary;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		6EA587AD2FC2D6F900B05C08 /* UtakataDiary */ = {
+		8A7F5B792C0A000100000001 /* UtakataDiary */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 6EA587B92FC2D6FC00B05C08 /* Build configuration list for PBXNativeTarget "UtakataDiary" */;
+			buildConfigurationList = 8A7F5B8F2C0A000100000001 /* Build configuration list for PBXNativeTarget "UtakataDiary" */;
 			buildPhases = (
-				6EA587AA2FC2D6F900B05C08 /* Sources */,
-				6EA587AB2FC2D6F900B05C08 /* Frameworks */,
-				6EA587AC2FC2D6F900B05C08 /* Resources */,
+				8A7F5B762C0A000100000001 /* Sources */,
+				8A7F5B772C0A000100000001 /* Frameworks */,
+				8A7F5B782C0A000100000001 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				6EA587B02FC2D6F900B05C08 /* UtakataDiary */,
-			);
 			name = UtakataDiary;
 			packageProductDependencies = (
 			);
 			productName = UtakataDiary;
-			productReference = 6EA587AE2FC2D6F900B05C08 /* UtakataDiary.app */;
+			productReference = 8A7F5B7A2C0A000100000001 /* UtakataDiary.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		6EA587A62FC2D6F900B05C08 /* Project object */ = {
+		8A7F5B722C0A000100000001 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
-					6EA587AD2FC2D6F900B05C08 = {
+					8A7F5B792C0A000100000001 = {
 						CreatedOnToolsVersion = 26.4.1;
+						LastSwiftMigration = 2640;
 					};
 				};
 			};
-			buildConfigurationList = 6EA587A92FC2D6F900B05C08 /* Build configuration list for PBXProject "UtakataDiary" */;
+			buildConfigurationList = 8A7F5B752C0A000100000001 /* Build configuration list for PBXProject "UtakataDiary" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				ja,
 			);
-			mainGroup = 6EA587A52FC2D6F900B05C08;
+			mainGroup = 8A7F5B712C0A000100000001;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 6EA587AF2FC2D6F900B05C08 /* Products */;
+			productRefGroup = 8A7F5B7B2C0A000100000001 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				6EA587AD2FC2D6F900B05C08 /* UtakataDiary */,
+				8A7F5B792C0A000100000001 /* UtakataDiary */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		6EA587AC2FC2D6F900B05C08 /* Resources */ = {
+		8A7F5B782C0A000100000001 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -115,17 +138,23 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		6EA587AA2FC2D6F900B05C08 /* Sources */ = {
+		8A7F5B762C0A000100000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6EA587A32FC2D65100B05C08 /* ContentView.swift in Sources */,
+				6EA587A52FC2D65100B05C08 /* Omikuji.swift in Sources */,
+				6EE34EFF2FC9B52F008EF693 /* Setting.swift in Sources */,
+				6EA587A42FC2D65100B05C08 /* UtakataDiaryApp.swift in Sources */,
+				6EE34EFD2FC6B2B6008EF693 /* Memory.swift in Sources */,
+				6EE34EFB2FC6B283008EF693 /* Diary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		6EA587B72FC2D6FC00B05C08 /* Debug */ = {
+		8A7F5B8B2C0A000100000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -160,7 +189,6 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 3UXCBB9H35;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -178,18 +206,19 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
 		};
-		6EA587B82FC2D6FC00B05C08 /* Release */ = {
+		8A7F5B8C2C0A000100000001 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -224,7 +253,6 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 3UXCBB9H35;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -236,102 +264,112 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
-		6EA587BA2FC2D6FC00B05C08 /* Debug */ = {
+		8A7F5B902C0A000100000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 3UXCBB9H35;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "うたかた日記";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSCameraUsageDescription = "日記カードに使う写真を撮影するためにカメラを使います。";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "写真の日時や色の気配から、今日の上の句を生成するために使います。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.inoue.riserin.UtakataDiary;
+				PRODUCT_BUNDLE_IDENTIFIER = com.utakata.diary;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
-		6EA587BB2FC2D6FC00B05C08 /* Release */ = {
+		8A7F5B912C0A000100000001 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 3UXCBB9H35;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "うたかた日記";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSCameraUsageDescription = "日記カードに使う写真を撮影するためにカメラを使います。";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "写真の日時や色の気配から、今日の上の句を生成するために使います。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.inoue.riserin.UtakataDiary;
+				PRODUCT_BUNDLE_IDENTIFIER = com.utakata.diary;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		6EA587A92FC2D6F900B05C08 /* Build configuration list for PBXProject "UtakataDiary" */ = {
+		8A7F5B752C0A000100000001 /* Build configuration list for PBXProject "UtakataDiary" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				6EA587B72FC2D6FC00B05C08 /* Debug */,
-				6EA587B82FC2D6FC00B05C08 /* Release */,
+				8A7F5B8B2C0A000100000001 /* Debug */,
+				8A7F5B8C2C0A000100000001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		6EA587B92FC2D6FC00B05C08 /* Build configuration list for PBXNativeTarget "UtakataDiary" */ = {
+		8A7F5B8F2C0A000100000001 /* Build configuration list for PBXNativeTarget "UtakataDiary" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				6EA587BA2FC2D6FC00B05C08 /* Debug */,
-				6EA587BB2FC2D6FC00B05C08 /* Release */,
+				8A7F5B902C0A000100000001 /* Debug */,
+				8A7F5B912C0A000100000001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 6EA587A62FC2D6F900B05C08 /* Project object */;
+	rootObject = 8A7F5B722C0A000100000001 /* Project object */;
 }
