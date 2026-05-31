@@ -332,19 +332,28 @@ struct PhotoPhraseContext {
 
     var phraseLines: [String] {
         if metrics.brightness < 0.34 {
-            return hasGPS ? ["夜の道", "灯りひとつを", "胸に置く"] : ["部屋の灯", "静かな影に", "息を置く"]
+            if metrics.blue > metrics.red + 0.04 {
+                return ["夜青く", "影の輪郭", "息ひそめ"]
+            }
+            return hasGPS ? ["夜の道", "灯りひとつ", "胸に置く"] : ["部屋の灯", "静かな影に", "息を置く"]
         }
 
         if metrics.blue > metrics.red + 0.06 && metrics.blue > metrics.green + 0.02 && metrics.brightness > 0.46 {
+            if metrics.saturation < 0.12 {
+                return ["薄青の", "空に今日だけ", "透けてゆく"]
+            }
             return height >= width * 1.12 ? ["空たかく", "縦の余白に", "風ひかる"] : ["午後の空", "青のひろがり", "雲ほどけ"]
         }
 
         if metrics.green > metrics.red + 0.04 && metrics.green > metrics.blue + 0.02 && metrics.saturation > 0.08 {
-            return ["葉のいろに", "風の居場所を", "見つけたり"]
+            return metrics.brightness > 0.58 ? ["葉の透けて", "風の居場所を", "見つけたり"] : ["深みどり", "影のすきまに", "風がいる"]
         }
 
         if metrics.warmth > 0.08 && metrics.brightness > 0.42 {
-            return hour >= 16 ? ["夕映えに", "街の輪郭", "ほどけゆく"] : ["ぬくい陽が", "指先までも", "染めていく"]
+            if hour >= 16 {
+                return ["夕映えに", "街の輪郭", "ほどけゆく"]
+            }
+            return metrics.saturation > 0.16 ? ["赤み差す", "今日の温度が", "頬にくる"] : ["ぬくい陽が", "指先まで", "染めていく"]
         }
 
         if metrics.brightness > 0.68 {
@@ -352,11 +361,15 @@ struct PhotoPhraseContext {
         }
 
         if metrics.saturation > 0.2 {
-            return ["色の粒", "今日の温度を", "抱いている"]
+            return metrics.red > metrics.blue ? ["色の粒", "今日の熱だけ", "抱いている"] : ["彩る景", "記憶の端で", "また光る"]
         }
 
         if width >= height * 1.18 {
             return ["横顔の", "景色をそっと", "持ち帰る"]
+        }
+
+        if height >= width * 1.18 {
+            return ["縦長の", "光を胸に", "しまいこむ"]
         }
 
         return ["淡い景", "名もない今日が", "息をする"]
@@ -466,6 +479,28 @@ enum PhotoPhraseGenerator {
         )
 
         return context.phraseLines
+    }
+
+    static func mood(from data: Data) -> CardMood {
+        guard let image = UIImage(data: data) else {
+            return .dawn
+        }
+
+        let metrics = image.colorMetrics()
+
+        if metrics.brightness < 0.36 {
+            return .night
+        }
+
+        if metrics.blue > metrics.red + 0.06 && metrics.blue > metrics.green + 0.02 {
+            return .rain
+        }
+
+        if metrics.warmth > 0.07 {
+            return .evening
+        }
+
+        return .dawn
     }
 
     private static func imageProperties(from data: Data) -> [CFString: Any]? {
@@ -590,10 +625,33 @@ struct PoemCardView: View {
             let edge = compact ? proxy.size.width * 0.045 : proxy.size.width * 0.055
             let bottom = compact ? proxy.size.height * 0.15 : proxy.size.height * 0.17
             let photoHeight = proxy.size.height - bottom - edge * 1.4
+            let poemWidth = min(proxy.size.width * (compact ? 0.33 : 0.31), compact ? 82 : 104)
 
             ZStack {
                 RoundedRectangle(cornerRadius: compact ? 10 : 14, style: .continuous)
-                    .fill(Color(hex: 0xFFF8EA))
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: 0xFFF8EA),
+                                Color(hex: 0xF5E4C8),
+                                mood.accent.opacity(0.13)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                WagasaArc()
+                    .stroke(Color.meijiRed.opacity(0.055), lineWidth: compact ? 0.8 : 1.1)
+                    .frame(width: proxy.size.width * 0.9, height: proxy.size.width * 0.9)
+                    .rotationEffect(.degrees(-18))
+                    .offset(x: proxy.size.width * 0.25, y: -proxy.size.height * 0.32)
+
+                SakuraPetalShape()
+                    .fill(Color.retroRose.opacity(0.055))
+                    .frame(width: proxy.size.width * 0.18, height: proxy.size.width * 0.26)
+                    .rotationEffect(.degrees(22))
+                    .offset(x: -proxy.size.width * 0.32, y: proxy.size.height * 0.32)
 
                 VStack(spacing: 0) {
                     ZStack(alignment: .topTrailing) {
@@ -613,20 +671,31 @@ struct PoemCardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: compact ? 5 : 7, style: .continuous))
                         .allowsHitTesting(false)
 
-                        VerticalTankaView(
-                            upperPhrase: upperPhrase,
-                            lowerPhrase: lowerPhrase,
-                            accent: mood.accent,
-                            compact: compact
-                        )
-                        .padding(.vertical, compact ? 8 : 12)
-                        .padding(.horizontal, compact ? 6 : 8)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.44), lineWidth: 0.8)
-                        )
-                        .padding(compact ? 8 : 12)
+                        HStack(spacing: 0) {
+                            LinearGradient(
+                                colors: [.black.opacity(0.0), .black.opacity(compact ? 0.08 : 0.13)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            .frame(width: poemWidth * 0.42)
+
+                            VerticalTankaView(
+                                upperPhrase: upperPhrase,
+                                lowerPhrase: lowerPhrase,
+                                accent: mood.accent,
+                                compact: compact
+                            )
+                            .frame(width: poemWidth)
+                            .frame(maxHeight: photoHeight - (compact ? 18 : 26), alignment: .top)
+                            .padding(.vertical, compact ? 7 : 10)
+                            .background(Color(hex: 0xFFF8EA).opacity(compact ? 0.74 : 0.66), in: RoundedRectangle(cornerRadius: compact ? 6 : 8, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: compact ? 6 : 8, style: .continuous)
+                                    .stroke(Color.retroGold.opacity(0.38), lineWidth: 0.8)
+                            )
+                        }
+                        .padding(.top, compact ? 7 : 10)
+                        .padding(.trailing, compact ? 7 : 10)
                     }
 
                     HStack(alignment: .center, spacing: 10) {
@@ -658,6 +727,15 @@ struct PoemCardView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: compact ? 10 : 14, style: .continuous)
                     .stroke(Color.primaryText.opacity(0.22), lineWidth: compact ? 0.9 : 1.1)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: compact ? 6 : 9, style: .continuous)
+                    .stroke(Color.retroGold.opacity(compact ? 0.35 : 0.48), lineWidth: compact ? 0.8 : 1)
+                    .padding(compact ? 7 : 10)
+            )
+            .overlay(
+                RetroCornerOrnaments(color: mood.accent.opacity(compact ? 0.28 : 0.36))
+                    .padding(compact ? 8 : 12)
             )
             .shadow(color: Color(hex: 0x4B362B).opacity(0.18), radius: compact ? 16 : 24, x: 0, y: compact ? 9 : 16)
         }
@@ -708,18 +786,19 @@ struct VerticalTankaView: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: compact ? 5 : 8) {
+        HStack(alignment: .top, spacing: compact ? 4 : 7) {
             ForEach(Array(lines.enumerated()).reversed(), id: \.offset) { index, line in
                 VerticalPoemLine(
                     text: line,
                     isLowerPhrase: index >= 3,
                     accent: accent,
-                    compact: compact
+                    compact: compact,
+                    isOpeningLine: index == 0
                 )
             }
         }
-        .fixedSize()
-        .padding(.horizontal, compact ? 1 : 4)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, compact ? 4 : 8)
     }
 }
 
@@ -728,24 +807,40 @@ struct VerticalPoemLine: View {
     let isLowerPhrase: Bool
     let accent: Color
     let compact: Bool
+    var isOpeningLine: Bool = false
     @AppStorage("utakataFontStyle") private var fontStyleRaw = UtakataFontStyle.mincho.rawValue
 
     var body: some View {
-        VStack(spacing: compact ? 1 : 2) {
-            ForEach(Array(text.enumerated()), id: \.offset) { _, character in
+        let characters = Array(displayText.enumerated())
+
+        VStack(spacing: compact ? 1.2 : 2.2) {
+            ForEach(characters, id: \.offset) { _, character in
                 Text(String(character))
-                    .font(currentFont.font(size: compact ? 14 : 17, weight: .medium))
+                    .font(currentFont.font(size: lineFontSize, weight: isOpeningLine ? .semibold : .medium))
                     .foregroundStyle(isLowerPhrase ? Color.primaryText.opacity(0.86) : Color.primaryText)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.55)
+                    .minimumScaleFactor(0.45)
             }
         }
-        .frame(width: compact ? 17 : 22)
-        .padding(.vertical, compact ? 4 : 6)
+        .frame(width: compact ? 16 : 21, alignment: .top)
+        .padding(.vertical, compact ? 5 : 8)
         .background(
             isLowerPhrase ? accent.opacity(0.07) : Color.clear,
             in: Capsule()
         )
+    }
+
+    private var lineFontSize: CGFloat {
+        if compact {
+            return isOpeningLine ? 13 : 12
+        }
+        return isOpeningLine ? 17 : 15
+    }
+
+    private var displayText: String {
+        let limit = compact ? 8 : 10
+        guard text.count > limit else { return text }
+        return String(text.prefix(max(1, limit - 1))) + "…"
     }
 
     private var currentFont: UtakataFontStyle {
@@ -759,38 +854,37 @@ struct HeaderView: View {
     @AppStorage("utakataFontStyle") private var fontStyleRaw = UtakataFontStyle.mincho.rawValue
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(spacing: 3) {
-                Rectangle()
-                    .fill(Color.meijiRed)
-                    .frame(width: 4, height: 28)
-                Circle()
-                    .fill(Color.retroGold)
-                    .frame(width: 6, height: 6)
-            }
+        HStack {
+            Spacer(minLength: 0)
 
-            VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                if title == "設定" {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color.meijiRed.opacity(0.9))
+                }
+
                 Text(title)
-                    .font(currentFont.font(size: 34, weight: .semibold))
+                    .font(currentFont.font(size: 32, weight: .semibold))
                     .foregroundStyle(Color.primaryText)
-                Rectangle()
-                    .fill(Color.meijiRed.opacity(0.7))
-                    .frame(width: 92, height: 1)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .padding(.bottom, 8)
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    colors: [.clear, Color.retroGold.opacity(0.72), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: 118, height: 1)
             }
 
-            Spacer()
-
-            Text(subtitle)
-                .font(.caption.weight(.black))
-                .foregroundStyle(Color.meijiBlue)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 7)
-                .background(Color.retroPaper.opacity(0.7), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .stroke(Color.meijiBlue.opacity(0.44), lineWidth: 1)
-                )
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
     }
 
     private var currentFont: UtakataFontStyle {
@@ -976,20 +1070,216 @@ struct AppBackground: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color(hex: 0xE3D0AE), Color(hex: 0xF9EBD7), Color(hex: 0xCFB28C)],
+                colors: [
+                    Color(hex: 0xF3D8D7),
+                    Color(hex: 0xF9EBD7),
+                    Color(hex: 0xDCC3B8),
+                    Color(hex: 0xC9DCE1)
+                ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
             RetroPaperTexture()
 
-            TaishoCheckPattern(color: Color.meijiRed.opacity(0.055), tile: 34)
+            TaishoCheckPattern(color: Color.meijiRed.opacity(0.04), tile: 34)
 
-            RadialGradient(colors: [Color.meijiRed.opacity(0.2), .clear], center: .topTrailing, startRadius: 10, endRadius: 280)
+            RetroBrickTownSilhouette()
+                .opacity(0.16)
 
-            RadialGradient(colors: [Color.meijiBlue.opacity(0.18), .clear], center: .bottomLeading, startRadius: 12, endRadius: 320)
+            RomanceDreamLayer()
+
+            RadialGradient(colors: [Color.retroRose.opacity(0.24), .clear], center: .topTrailing, startRadius: 10, endRadius: 280)
+
+            RadialGradient(colors: [Color.meijiBlue.opacity(0.14), .clear], center: .bottomLeading, startRadius: 12, endRadius: 320)
+
+            VintagePostcardBorder()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
         }
         .ignoresSafeArea()
+    }
+}
+
+struct RetroBrickTownSilhouette: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let baseY = proxy.size.height * 0.76
+
+            ZStack(alignment: .bottom) {
+                ForEach(0..<8, id: \.self) { index in
+                    let width = proxy.size.width / 7.5
+                    let height = CGFloat([86, 122, 96, 148, 112, 132, 90, 116][index])
+
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(Color.primaryText.opacity(index.isMultiple(of: 2) ? 0.12 : 0.09))
+                        .frame(width: width, height: height)
+                        .overlay {
+                            VStack(spacing: 8) {
+                                ForEach(0..<4, id: \.self) { _ in
+                                    HStack(spacing: 8) {
+                                        ForEach(0..<2, id: \.self) { _ in
+                                            RoundedRectangle(cornerRadius: 1.5)
+                                                .fill(Color.retroPaper.opacity(0.32))
+                                                .frame(width: 9, height: 14)
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.top, 14)
+                        }
+                        .offset(x: (CGFloat(index) - 3.5) * width * 0.92, y: baseY - proxy.size.height / 2)
+                }
+
+                Rectangle()
+                    .fill(Color.primaryText.opacity(0.08))
+                    .frame(height: 1)
+                    .offset(y: baseY - proxy.size.height / 2)
+            }
+            .blur(radius: 0.25)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+struct VintagePostcardBorder: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.retroGold.opacity(0.34), lineWidth: 1)
+
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.meijiRed.opacity(0.14), lineWidth: 0.8)
+                .padding(7)
+
+            GeometryReader { proxy in
+                ForEach(0..<4, id: \.self) { index in
+                    SakuraPetalShape()
+                        .fill(Color.retroRose.opacity(0.18))
+                        .frame(width: 18, height: 26)
+                        .rotationEffect(.degrees(Double(index) * 92 + 18))
+                        .position(cornerPosition(index, in: proxy.size))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func cornerPosition(_ index: Int, in size: CGSize) -> CGPoint {
+        let inset: CGFloat = 28
+        switch index {
+        case 0: return CGPoint(x: inset, y: inset)
+        case 1: return CGPoint(x: size.width - inset, y: inset)
+        case 2: return CGPoint(x: inset, y: size.height - inset)
+        default: return CGPoint(x: size.width - inset, y: size.height - inset)
+        }
+    }
+}
+
+struct RomanceDreamLayer: View {
+    private let petals: [(x: CGFloat, y: CGFloat, size: CGFloat, angle: Double, opacity: Double)] = [
+        (0.14, 0.12, 19, -22, 0.42),
+        (0.82, 0.16, 24, 18, 0.34),
+        (0.25, 0.33, 14, 35, 0.30),
+        (0.72, 0.42, 17, -18, 0.28),
+        (0.09, 0.68, 22, 24, 0.26),
+        (0.88, 0.78, 15, -32, 0.30)
+    ]
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                SoftWindowGrid()
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .frame(width: proxy.size.width * 0.72, height: proxy.size.height * 0.22)
+                    .offset(x: -proxy.size.width * 0.04, y: -proxy.size.height * 0.36)
+                    .blur(radius: 0.2)
+
+                WagasaArc()
+                    .stroke(Color.meijiRed.opacity(0.18), lineWidth: 1.2)
+                    .frame(width: proxy.size.width * 0.62, height: proxy.size.width * 0.62)
+                    .offset(x: proxy.size.width * 0.33, y: -proxy.size.height * 0.24)
+
+                ForEach(Array(petals.enumerated()), id: \.offset) { _, petal in
+                    SakuraPetalShape()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: 0xFFE5E8).opacity(petal.opacity), Color.retroRose.opacity(petal.opacity * 0.92)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: petal.size, height: petal.size * 1.5)
+                        .rotationEffect(.degrees(petal.angle))
+                        .position(x: proxy.size.width * petal.x, y: proxy.size.height * petal.y)
+                        .blur(radius: 0.15)
+                }
+
+                Path { path in
+                    path.move(to: CGPoint(x: proxy.size.width * 0.05, y: proxy.size.height * 0.2))
+                    path.addCurve(
+                        to: CGPoint(x: proxy.size.width * 0.92, y: proxy.size.height * 0.1),
+                        control1: CGPoint(x: proxy.size.width * 0.28, y: proxy.size.height * 0.08),
+                        control2: CGPoint(x: proxy.size.width * 0.64, y: proxy.size.height * 0.24)
+                    )
+                }
+                .stroke(Color.meijiRed.opacity(0.13), style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+            }
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+struct SakuraPetalShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addCurve(to: CGPoint(x: rect.maxX, y: rect.midY), control1: CGPoint(x: rect.maxX * 0.92, y: rect.minY + rect.height * 0.12), control2: CGPoint(x: rect.maxX, y: rect.midY * 0.72))
+        path.addCurve(to: CGPoint(x: rect.midX, y: rect.maxY), control1: CGPoint(x: rect.maxX * 0.94, y: rect.maxY * 0.72), control2: CGPoint(x: rect.midX + rect.width * 0.16, y: rect.maxY * 0.92))
+        path.addCurve(to: CGPoint(x: rect.minX, y: rect.midY), control1: CGPoint(x: rect.midX - rect.width * 0.16, y: rect.maxY * 0.92), control2: CGPoint(x: rect.minX + rect.width * 0.06, y: rect.maxY * 0.72))
+        path.addCurve(to: CGPoint(x: rect.midX, y: rect.minY), control1: CGPoint(x: rect.minX, y: rect.midY * 0.72), control2: CGPoint(x: rect.maxX * 0.08, y: rect.minY + rect.height * 0.12))
+        path.closeSubpath()
+        return path
+    }
+}
+
+struct WagasaArc: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.maxY)
+        let radius = rect.width * 0.52
+
+        path.addArc(center: center, radius: radius, startAngle: .degrees(205), endAngle: .degrees(335), clockwise: false)
+        for index in 0...8 {
+            let angle = (205 + Double(index) * 130 / 8) * .pi / 180
+            let end = CGPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius)
+            path.move(to: center)
+            path.addLine(to: end)
+        }
+
+        return path
+    }
+}
+
+struct SoftWindowGrid: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let columns = 5
+        let rows = 3
+
+        for column in 0...columns {
+            let x = rect.minX + rect.width * CGFloat(column) / CGFloat(columns)
+            path.move(to: CGPoint(x: x, y: rect.minY))
+            path.addLine(to: CGPoint(x: x, y: rect.maxY))
+        }
+
+        for row in 0...rows {
+            let y = rect.minY + rect.height * CGFloat(row) / CGFloat(rows)
+            path.move(to: CGPoint(x: rect.minX, y: y))
+            path.addLine(to: CGPoint(x: rect.maxX, y: y))
+        }
+
+        return path
     }
 }
 

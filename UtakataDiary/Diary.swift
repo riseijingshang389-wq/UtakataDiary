@@ -26,9 +26,8 @@ struct TodayView: View {
 
                     if let latestCard = savedCards.first {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("最新の日記")
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(Color.primaryText)
+                            RetroRibbonLabel(text: "最新の日記", tint: Color.meijiRed)
+                                .padding(.leading, 2)
 
                             MemoryPreviewCard(card: latestCard)
                         }
@@ -36,10 +35,11 @@ struct TodayView: View {
                         EmptyDiaryHint()
                     }
 
-                    Spacer(minLength: 120)
+                    Spacer(minLength: 190)
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 20)
+                .padding(.bottom, 84)
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingComposer) {
@@ -58,38 +58,44 @@ struct TodayView: View {
 
 struct CreateDiaryEntryCard: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 16) {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(alignment: .center, spacing: 18) {
                 ZStack {
-                    TaishoBadgeShape()
+                    Circle()
                         .fill(
-                            LinearGradient(colors: [Color.meijiRed, Color.retroRose], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            RadialGradient(
+                                colors: [Color(hex: 0xF8C9C7), Color.retroRose, Color.meijiRed],
+                                center: .topLeading,
+                                startRadius: 3,
+                                endRadius: 48
+                            )
                         )
-                        .frame(width: 66, height: 66)
+                        .frame(width: 72, height: 72)
                         .overlay(
-                            TaishoBadgeShape()
-                                .stroke(Color.retroGold.opacity(0.82), lineWidth: 1.2)
-                                .padding(6)
+                            Circle()
+                                .stroke(Color.retroGold.opacity(0.72), lineWidth: 1.1)
+                                .padding(5)
                         )
-                        .shadow(color: Color.meijiRed.opacity(0.24), radius: 16, x: 0, y: 8)
+                        .shadow(color: Color.meijiRed.opacity(0.22), radius: 18, x: 0, y: 9)
 
                     Image(systemName: "plus")
-                        .font(.system(size: 30, weight: .bold))
+                        .font(.system(size: 31, weight: .bold))
                         .foregroundStyle(.white)
                 }
 
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 9) {
                     RetroRibbonLabel(text: "日記を作成", tint: Color.meijiRed)
                     Text("写真を選ぶ / 撮る → 上の句 → 下の句 → 一枚の札へ")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Color.secondaryText)
+                        .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 0)
             }
 
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 9) {
                 FlowChip(number: "1", title: "写真")
                 FlowLine()
                 FlowChip(number: "2", title: "上の句")
@@ -98,14 +104,39 @@ struct CreateDiaryEntryCard: View {
                 FlowLine()
                 FlowChip(number: "4", title: "札")
             }
+            .padding(.horizontal, 2)
+            .padding(.vertical, 4)
         }
-        .padding(22)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 26)
         .background {
             ZStack {
-                Color.retroPaper.opacity(0.88)
-                TaishoCheckPattern(color: Color.meijiBlue.opacity(0.08), tile: 22)
+                LinearGradient(
+                    colors: [
+                        Color(hex: 0xFFF1E8).opacity(0.94),
+                        Color(hex: 0xF6D7D9).opacity(0.82),
+                        Color(hex: 0xEAD6BF).opacity(0.88)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                TaishoCheckPattern(color: Color.meijiRed.opacity(0.055), tile: 22)
                 WashiPattern()
                     .opacity(0.26)
+                WagasaArc()
+                    .stroke(Color.meijiRed.opacity(0.16), lineWidth: 1)
+                    .frame(width: 180, height: 180)
+                    .offset(x: 120, y: -42)
+                SakuraPetalShape()
+                    .fill(Color.retroRose.opacity(0.28))
+                    .frame(width: 18, height: 26)
+                    .rotationEffect(.degrees(-24))
+                    .offset(x: 112, y: 56)
+                SakuraPetalShape()
+                    .fill(Color(hex: 0xFFE5E8).opacity(0.42))
+                    .frame(width: 13, height: 20)
+                    .rotationEffect(.degrees(28))
+                    .offset(x: -118, y: -44)
                 RetroCornerOrnaments(color: Color.meijiRed.opacity(0.42))
                     .padding(10)
             }
@@ -113,7 +144,7 @@ struct CreateDiaryEntryCard: View {
         }
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.meijiRed.opacity(0.62), lineWidth: 1.4)
+                .stroke(Color.meijiRed.opacity(0.48), lineWidth: 1.2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -168,30 +199,47 @@ struct DiaryMonthOverview: View {
                 .buttonStyle(.plain)
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 7), spacing: 9) {
                 ForEach(["日", "月", "火", "水", "木", "金", "土"], id: \.self) { weekday in
                     Text(weekday)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Color.secondaryText.opacity(0.72))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(weekday == "日" ? Color.meijiRed.opacity(0.72) : Color.secondaryText.opacity(0.74))
+                        .frame(height: 22)
+                        .frame(maxWidth: .infinity)
                 }
 
-                ForEach(days, id: \.self) { day in
-                    let hasCard = cards.contains { calendar.isDate($0.date, inSameDayAs: day) }
-                    Text("\(calendar.component(.day, from: day))")
-                        .font(.caption.monospacedDigit().weight(hasCard ? .bold : .medium))
-                        .foregroundStyle(hasCard ? Color.retroPaper : Color.secondaryText)
-                        .frame(height: 32)
-                        .frame(maxWidth: .infinity)
-                        .background(hasCard ? Color.meijiRed : Color.retroPaper.opacity(0.55), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .stroke(hasCard ? Color.retroGold.opacity(0.68) : Color.primaryText.opacity(0.16), lineWidth: 0.8)
+                ForEach(Array(calendarCells.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        let hasCard = cards.contains { calendar.isDate($0.date, inSameDayAs: day) }
+                        DiaryCalendarDayCell(
+                            dayNumber: calendar.component(.day, from: day),
+                            hasCard: hasCard,
+                            symbol: calendarSymbol(for: day)
                         )
+                    } else {
+                        Color.clear
+                            .frame(height: 40)
+                    }
                 }
             }
         }
         .padding(20)
         .taishoPanel(tint: Color.meijiBlue)
+    }
+
+    private var calendarCells: [Date?] {
+        guard let firstDay = days.first else { return [] }
+        let leadingBlanks = calendar.component(.weekday, from: firstDay) - 1
+        return Array(repeating: nil, count: leadingBlanks) + days.map(Optional.some)
+    }
+
+    private func calendarSymbol(for day: Date) -> String {
+        switch calendar.component(.day, from: day) % 4 {
+        case 0: return "sun.max.fill"
+        case 1: return "wind"
+        case 2: return "leaf.fill"
+        default: return "drop.fill"
+        }
     }
 }
 
@@ -200,16 +248,34 @@ struct FlowChip: View {
     let title: String
 
     var body: some View {
-        VStack(spacing: 4) {
-            Text(number)
-                .font(.caption2.monospacedDigit().weight(.bold))
-                .foregroundStyle(Color.retroPaper)
-                .frame(width: 22, height: 22)
-                .background(Color.meijiBlue, in: TaishoBadgeShape())
-                .overlay(TaishoBadgeShape().stroke(Color.retroGold.opacity(0.58), lineWidth: 0.8))
+        VStack(spacing: 7) {
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(hex: 0xFFF3D9), Color(hex: 0xEBC7B1), Color.retroRose.opacity(0.86)],
+                            center: .topLeading,
+                            startRadius: 2,
+                            endRadius: 22
+                        )
+                    )
+                    .shadow(color: Color.retroRose.opacity(0.17), radius: 8, x: 0, y: 4)
+
+                Circle()
+                    .stroke(Color.retroGold.opacity(0.72), lineWidth: 0.9)
+                    .padding(3)
+
+                Text(number)
+                    .font(.caption.monospacedDigit().weight(.black))
+                    .foregroundStyle(Color.meijiBlue)
+            }
+            .frame(width: 34, height: 34)
+
             Text(title)
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(Color.secondaryText)
+                .foregroundStyle(Color.primaryText.opacity(0.82))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity)
     }
@@ -217,10 +283,64 @@ struct FlowChip: View {
 
 struct FlowLine: View {
     var body: some View {
-        Rectangle()
-            .fill(Color.secondaryText.opacity(0.18))
-            .frame(width: 10, height: 1)
-            .padding(.top, -14)
+        Image(systemName: "chevron.right")
+            .font(.caption2.weight(.black))
+            .foregroundStyle(Color.retroGold.opacity(0.82))
+            .frame(width: 10, height: 34)
+    }
+}
+
+struct DiaryCalendarDayCell: View {
+    let dayNumber: Int
+    let hasCard: Bool
+    let symbol: String
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Text("\(dayNumber)")
+                .font(.caption.monospacedDigit().weight(hasCard ? .bold : .semibold))
+                .foregroundStyle(hasCard ? Color.primaryText : Color.secondaryText.opacity(0.8))
+                .frame(height: 17)
+
+            if hasCard {
+                ZStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color(hex: 0xFFF0BA).opacity(0.98),
+                                    Color.retroRose.opacity(0.58),
+                                    Color.meijiRed.opacity(0.1)
+                                ],
+                                center: .center,
+                                startRadius: 1,
+                                endRadius: 15
+                            )
+                        )
+                        .frame(width: 24, height: 24)
+                        .shadow(color: Color.meijiRed.opacity(0.22), radius: 8, x: 0, y: 3)
+
+                    Image(systemName: symbol)
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundStyle(Color.meijiRed.opacity(0.86))
+                }
+            } else {
+                Circle()
+                    .fill(Color.primaryText.opacity(0.08))
+                    .frame(width: 4, height: 4)
+                    .padding(.top, 5)
+            }
+        }
+        .frame(height: 40)
+        .frame(maxWidth: .infinity)
+        .background(
+            hasCard ? Color.retroPaper.opacity(0.52) : Color.retroPaper.opacity(0.28),
+            in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(hasCard ? Color.retroGold.opacity(0.34) : Color.primaryText.opacity(0.08), lineWidth: 0.8)
+        )
     }
 }
 
@@ -241,134 +361,103 @@ struct EmptyDiaryHint: View {
 struct DiaryComposerView: View {
     let onCreate: (DiaryCard) -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedEmotion = DiaryEmotion.joy
-    @State private var customLowerPhrase = ""
-    @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var selectedPhotoData: Data?
-    @State private var generatedUpperPhrase = ["写真を選ぶと", "今日の上の句", "浮かびます"]
-    @State private var showingFinishedCard = false
-    @State private var showingCamera = false
+    @State private var factText = ""
+    @State private var selectedTone = DiaryTone.joy
+    @State private var selectedLowerIndex = 0
+    @State private var isStoring = false
+    @State private var sparkleBurst = false
 
     private var currentLowerPhrase: String {
-        let trimmedPhrase = customLowerPhrase.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedPhrase.isEmpty ? selectedEmotion.lowerPhrase : trimmedPhrase
+        selectedTone.lowerOptions[safe: selectedLowerIndex] ?? selectedTone.lowerOptions[0]
     }
 
-    private var canCreate: Bool {
-        selectedPhotoData != nil
+    private var generatedUpperPhrase: [String] {
+        DiaryFactPhraseGenerator.upperPhrase(from: factText, tone: selectedTone)
+    }
+
+    private var canStore: Bool {
+        !factText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
         ZStack {
             AppBackground()
+            OmikujiPreDrawFantasyLayer()
+                .opacity(0.72)
+                .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 22) {
-                    HeaderView(title: "日記を作成", subtitle: "写真から一首へ")
+                VStack(alignment: .leading, spacing: 16) {
+                    HeaderView(title: "日記を作成", subtitle: "5秒で一首")
 
-                    DiarySourcePicker(
-                        photoData: selectedPhotoData,
-                        selectedItem: $selectedPhotoItem,
-                        onCameraTap: { showingCamera = true }
+                    FactInputStep(factText: $factText)
+
+                    TonePickerStep(selectedTone: $selectedTone, selectedLowerIndex: $selectedLowerIndex)
+
+                    LowerPhraseSlotStep(
+                        tone: selectedTone,
+                        selectedIndex: $selectedLowerIndex
                     )
-                    .onChange(of: selectedPhotoItem) { _, newItem in
-                        Task {
-                            guard let data = try? await newItem?.loadTransferable(type: Data.self) else {
-                                return
+
+                    if canStore {
+                        CompletedTankaStep(
+                            upperPhrase: generatedUpperPhrase,
+                            lowerPhrase: currentLowerPhrase,
+                            mood: selectedTone.mood,
+                            isStoring: isStoring
+                        )
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+
+                        Button {
+                            storeCard()
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "archivebox.fill")
+                                Text("日記を棚に納める")
                             }
-                            applyPhotoData(data)
-                        }
-                    }
-
-                    if let selectedPhotoData {
-                        StepSectionTitle(number: "2", title: "上の句を確認")
-
-                        HStack {
-                            Spacer()
-                            PoemCardView(
-                                upperPhrase: generatedUpperPhrase,
-                                lowerPhrase: currentLowerPhrase,
-                                mood: .rain,
-                                compact: true,
-                                photoData: selectedPhotoData
-                            )
-                            .frame(width: 238, height: 360)
-                            Spacer()
-                        }
-
-                        VStack(alignment: .leading, spacing: 14) {
-                            StepSectionTitle(number: "3", title: "感情を選ぶ / 下の句を書く")
-
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 10)], spacing: 10) {
-                                ForEach(DiaryEmotion.allCases, id: \.self) { emotion in
-                                    EmotionChoiceChip(
-                                        emotion: emotion,
-                                        isSelected: customLowerPhrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedEmotion == emotion
-                                    ) {
-                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                            customLowerPhrase = ""
-                                            selectedEmotion = emotion
-                                        }
-                                    }
-                                }
-                            }
-
-                            Text(currentLowerPhrase)
-                                .font(.system(size: 20, weight: .semibold, design: .serif))
-                                .foregroundStyle(Color.primaryText)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(16)
-                                .background(Color.retroPaper.opacity(0.62), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(selectedEmotion.tint.opacity(0.42), lineWidth: 1)
-                                )
-
-                            CustomLowerPhraseField(text: $customLowerPhrase)
-                        }
-                    }
-
-                    Button {
-                        showingFinishedCard = true
-                    } label: {
-                        Label("日記を作成", systemImage: "seal")
-                            .font(.headline)
+                            .font(.headline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.white)
+                        .background(Color.meijiRed, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.48), lineWidth: 1))
+                        .shadow(color: Color.meijiRed.opacity(0.22), radius: 14, x: 0, y: 8)
+                        .disabled(isStoring)
+                        .padding(.top, 2)
                     }
-                    .buttonStyle(.utakataPrimary)
-                    .opacity(canCreate ? 1 : 0.45)
-                    .disabled(!canCreate)
-                    .padding(.bottom, 36)
+
+                    Color.clear
+                        .frame(height: 1)
+                    .padding(.bottom, 110)
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 22)
             }
-        }
-        .sheet(isPresented: $showingFinishedCard) {
-            FinishedCardView(card: makeCard()) { card in
-                onCreate(card)
-                dismiss()
-            }
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-        }
-        .fullScreenCover(isPresented: $showingCamera) {
-            CameraPicker { image in
-                if let data = image.jpegData(compressionQuality: 0.88) {
-                    applyPhotoData(data)
-                }
-                showingCamera = false
-            } onCancel: {
-                showingCamera = false
+
+            if sparkleBurst {
+                DiaryStoreSparkleBurst()
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
             }
         }
     }
 
-    private func applyPhotoData(_ data: Data) {
-        selectedPhotoData = data
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-            generatedUpperPhrase = PhotoPhraseGenerator.upperPhrase(from: data)
+    private func storeCard() {
+        guard canStore, !isStoring else { return }
+
+        withAnimation(.spring(response: 0.58, dampingFraction: 0.72)) {
+            isStoring = true
+            sparkleBurst = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.68) {
+            onCreate(makeCard())
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.02) {
+            dismiss()
         }
     }
 
@@ -377,10 +466,495 @@ struct DiaryComposerView: View {
             date: .now,
             upperPhrase: generatedUpperPhrase,
             lowerPhrase: currentLowerPhrase,
-            mood: .rain,
-            placeHint: selectedPhotoData == nil ? "写真なし" : "選んだ写真",
-            photoData: selectedPhotoData
+            mood: selectedTone.mood,
+            placeHint: factText.trimmingCharacters(in: .whitespacesAndNewlines),
+            photoData: nil
         )
+    }
+}
+
+enum DiaryTone: String, CaseIterable, Hashable {
+    case joy = "喜"
+    case sorrow = "憂"
+    case calm = "穏"
+    case anger = "怒"
+
+    var title: String {
+        switch self {
+        case .joy: return "うれし"
+        case .sorrow: return "もの憂げ"
+        case .calm: return "やわらぎ"
+        case .anger: return "むっと"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .joy: return Color.meijiRed
+        case .sorrow: return Color.meijiBlue
+        case .calm: return Color.retroSage
+        case .anger: return Color(hex: 0x9A513E)
+        }
+    }
+
+    var mood: CardMood {
+        switch self {
+        case .joy: return .dawn
+        case .sorrow: return .night
+        case .calm: return .rain
+        case .anger: return .evening
+        }
+    }
+
+    var lowerOptions: [String] {
+        switch self {
+        case .joy:
+            return [
+                "ときめき抱いて 星がほどける",
+                "笑みをかくして 夜へしまう",
+                "胸の灯だけを そっと連れて"
+            ]
+        case .sorrow:
+            return [
+                "憂いをのせて 夜が更ける",
+                "ため息ひとつ 灯が揺れる",
+                "言えないままに 月へ預ける"
+            ]
+        case .calm:
+            return [
+                "静かな息に 明日が香る",
+                "湯気のむこうで 心ほどける",
+                "やさしい影を 袖にしまって"
+            ]
+        case .anger:
+            return [
+                "赤きこころを 風に逃がして",
+                "むっとしたまま 星を数える",
+                "尖った言葉を 夜へほどいて"
+            ]
+        }
+    }
+}
+
+enum DiaryFactPhraseGenerator {
+    static func upperPhrase(from fact: String, tone: DiaryTone) -> [String] {
+        let cleaned = fact
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "　", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !cleaned.isEmpty else {
+            return ["ひとことを", "入れるだけで", "札になる"]
+        }
+
+        let factLine = cleaned.shortPoemLine(limit: 8)
+        let bridge: String
+        let afterglow: String
+
+        switch tone {
+        case .joy:
+            bridge = "今日の余韻に"
+            afterglow = "光さす"
+        case .sorrow:
+            bridge = "こころの隅で"
+            afterglow = "雨が降る"
+        case .calm:
+            bridge = "湯気のむこうに"
+            afterglow = "風やわし"
+        case .anger:
+            bridge = "胸の火照りを"
+            afterglow = "夜へ置く"
+        }
+
+        return [factLine, bridge, afterglow]
+    }
+}
+
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
+extension String {
+    func shortPoemLine(limit: Int) -> String {
+        let compacted = replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "　", with: "")
+        guard compacted.count > limit else { return compacted }
+        return String(compacted.prefix(max(1, limit - 1))) + "…"
+    }
+}
+
+struct QuickDiaryIntro: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bolt.heart.fill")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Color.retroGold)
+                .frame(width: 38, height: 38)
+                .background(Color.meijiRed.opacity(0.88), in: Circle())
+                .overlay(Circle().stroke(Color(hex: 0xFFF3C8).opacity(0.7), lineWidth: 1))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("1行だけで、今日が札になる")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(Color.primaryText)
+                Text("ボソッと書いて、感情を押すだけ。")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.secondaryText)
+            }
+        }
+        .padding(16)
+        .background(Color(hex: 0xFFF8EA).opacity(0.62), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.28), lineWidth: 1))
+    }
+}
+
+struct FactInputStep: View {
+    @Binding var factText: String
+
+    var body: some View {
+        DiaryFormSection {
+            StepSectionTitle(number: "1", title: "今日の事実")
+
+            TextField("例：スタバ新作飲んだ", text: $factText)
+                .textFieldStyle(.plain)
+                .font(.body)
+                .foregroundStyle(Color.primaryText)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 15)
+                .background(Color(hex: 0xFFF9F2).opacity(0.9), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.retroGold.opacity(0.28), lineWidth: 0.8))
+        }
+    }
+}
+
+struct UpperPhrasePreview: View {
+    let lines: [String]
+    let accent: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            ForEach(Array(lines.prefix(3).enumerated()).reversed(), id: \.offset) { index, line in
+                VerticalPoemLine(
+                    text: line,
+                    isLowerPhrase: false,
+                    accent: accent,
+                    compact: false,
+                    isOpeningLine: index == 0
+                )
+            }
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 20)
+        .background(Color(hex: 0xFFF8EA).opacity(0.66), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.retroGold.opacity(0.32), lineWidth: 0.9))
+    }
+}
+
+struct DiaryFormSection<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            content
+        }
+        .padding(16)
+        .background {
+            ZStack {
+                Color(hex: 0xFFF9F2).opacity(0.9)
+                WashiPattern()
+                    .opacity(0.11)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.meijiRed.opacity(0.22), lineWidth: 0.8))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.retroGold.opacity(0.22), lineWidth: 0.7).padding(4))
+    }
+}
+
+struct TonePickerStep: View {
+    @Binding var selectedTone: DiaryTone
+    @Binding var selectedLowerIndex: Int
+
+    var body: some View {
+        DiaryFormSection {
+            StepSectionTitle(number: "2", title: "今のこころ")
+
+            Picker("今のこころ", selection: $selectedTone) {
+                ForEach(DiaryTone.allCases, id: \.self) { tone in
+                    Text(tone.rawValue).tag(tone)
+                }
+            }
+            .pickerStyle(.segmented)
+            .tint(Color.meijiRed)
+            .onChange(of: selectedTone) { _, _ in
+                selectedLowerIndex = 0
+            }
+        }
+    }
+}
+
+struct ToneStampButton: View {
+    let tone: DiaryTone
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                PlumBlossom()
+                    .fill(isSelected ? tone.tint : Color(hex: 0xFFF1DE).opacity(0.92))
+                    .frame(width: 44, height: 44)
+                    .shadow(color: tone.tint.opacity(isSelected ? 0.24 : 0.08), radius: 8, x: 0, y: 4)
+
+                Text(tone.rawValue)
+                    .font(.system(size: 21, weight: .black, design: .serif))
+                    .foregroundStyle(isSelected ? Color.retroPaper : tone.tint)
+            }
+
+            Text(tone.title)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(isSelected ? tone.tint : Color.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 9)
+        .background(isSelected ? Color(hex: 0xFFF8EA).opacity(0.78) : Color(hex: 0xFFF8EA).opacity(0.38), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? Color.retroGold.opacity(0.62) : Color.primaryText.opacity(0.09), lineWidth: 1))
+    }
+}
+
+struct LowerPhraseSlotStep: View {
+    let tone: DiaryTone
+    @Binding var selectedIndex: Int
+
+    var body: some View {
+        DiaryFormSection {
+            StepSectionTitle(number: "3", title: "下の句を選ぶ")
+
+            VStack(spacing: 0) {
+                ForEach(Array(tone.lowerOptions.enumerated()), id: \.offset) { index, phrase in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            selectedIndex = index
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(phrase)
+                                .font(.body)
+                                .foregroundStyle(Color.primaryText)
+                                .multilineTextAlignment(.leading)
+                            Spacer()
+                            if selectedIndex == index {
+                                Image(systemName: "checkmark")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(Color.meijiRed)
+                            }
+                        }
+                        .padding(.vertical, 14)
+                        .padding(.horizontal, 14)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if index < tone.lowerOptions.count - 1 {
+                        Divider()
+                            .padding(.leading, 14)
+                    }
+                }
+            }
+            .background(Color(hex: 0xFFF9F2).opacity(0.9), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.retroGold.opacity(0.24), lineWidth: 0.8))
+        }
+    }
+}
+
+struct LowerPhraseTanzaku: View {
+    let phrase: String
+    let accent: Color
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            ForEach(Array(phrase.tankaLowerLines().enumerated()).reversed(), id: \.offset) { _, line in
+                VerticalPoemLine(text: line, isLowerPhrase: true, accent: accent, compact: true)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 132, alignment: .center)
+        .padding(.vertical, 12)
+        .background {
+            ZStack {
+                LinearGradient(colors: [Color(hex: 0xFFF8EA), Color(hex: 0xF3DFBD), accent.opacity(0.1)], startPoint: .top, endPoint: .bottom)
+                WashiPattern()
+                    .opacity(0.2)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(isSelected ? accent.opacity(0.78) : Color.retroGold.opacity(0.28), lineWidth: isSelected ? 1.5 : 0.9))
+        .overlay(alignment: .top) {
+            Circle()
+                .fill(isSelected ? Color.retroGold : Color.primaryText.opacity(0.18))
+                .frame(width: 8, height: 8)
+                .offset(y: 7)
+        }
+        .scaleEffect(isSelected ? 1.03 : 0.98)
+    }
+}
+
+struct CompletedTankaStep: View {
+    let upperPhrase: [String]
+    let lowerPhrase: String
+    let mood: CardMood
+    let isStoring: Bool
+
+    var body: some View {
+        DiaryFormSection {
+            StepSectionTitle(number: "4", title: "短歌日記の完成")
+
+            HStack {
+                Spacer()
+                TankaOmikujiPreviewCard(
+                    upperPhrase: upperPhrase,
+                    lowerPhrase: lowerPhrase,
+                    accent: mood.accent
+                )
+                .frame(width: 232, height: 358)
+                .scaleEffect(isStoring ? 0.42 : 1)
+                .offset(x: isStoring ? 92 : 0, y: isStoring ? 142 : 0)
+                .rotationEffect(.degrees(isStoring ? 8 : 0))
+                .opacity(isStoring ? 0.28 : 1)
+                Spacer()
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "archivebox.fill")
+                Text("名前札棚へ、すっと格納")
+            }
+            .font(.caption.weight(.bold))
+            .foregroundStyle(Color.secondaryText)
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+}
+
+struct TankaOmikujiPreviewCard: View {
+    let upperPhrase: [String]
+    let lowerPhrase: String
+    let accent: Color
+
+    private var allLines: [String] {
+        Array(upperPhrase.prefix(3)) + lowerPhrase.tankaLowerLines()
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: 0xFFF8EA), Color(hex: 0xF4DFBE), accent.opacity(0.16)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            WashiPattern()
+                .opacity(0.18)
+
+            TaishoCheckPattern(color: Color.meijiRed.opacity(0.025), tile: 24)
+
+            OrnateOmikujiBorder()
+                .stroke(Color.primaryText.opacity(0.46), lineWidth: 1)
+                .padding(10)
+
+            OrnateOmikujiBorder()
+                .stroke(Color.retroGold.opacity(0.5), lineWidth: 0.8)
+                .padding(18)
+
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(Array(allLines.enumerated()).reversed(), id: \.offset) { index, line in
+                    VerticalPoemLine(
+                        text: line,
+                        isLowerPhrase: index >= 3,
+                        accent: accent,
+                        compact: false,
+                        isOpeningLine: index == 0
+                    )
+                }
+            }
+            .padding(.vertical, 44)
+            .padding(.horizontal, 30)
+
+            VStack {
+                Text("うたかた日記")
+                    .font(UtakataFontStyle.retroMincho(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.primaryText.opacity(0.8))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(Color(hex: 0xFFF9F2).opacity(0.82), in: Capsule())
+                    .overlay(Capsule().stroke(Color.retroGold.opacity(0.36), lineWidth: 0.8))
+                Spacer()
+            }
+            .padding(.top, 18)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primaryText.opacity(0.4), lineWidth: 1.1))
+        .shadow(color: accent.opacity(0.18), radius: 16, x: 0, y: 10)
+    }
+}
+
+struct DiaryStoreSparkleBurst: View {
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                ForEach(0..<28, id: \.self) { index in
+                    Image(systemName: index.isMultiple(of: 3) ? "sparkles" : "sparkle")
+                        .font(.system(size: CGFloat(11 + (index % 5) * 4), weight: .bold))
+                        .foregroundStyle(index.isMultiple(of: 2) ? Color.retroGold : Color(hex: 0xF3A8B7))
+                        .position(
+                            x: proxy.size.width * sparklePositions[index % sparklePositions.count].0,
+                            y: proxy.size.height * sparklePositions[index % sparklePositions.count].1
+                        )
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .background(Color(hex: 0xFFF8EA).opacity(0.12))
+        }
+    }
+
+    private var sparklePositions: [(CGFloat, CGFloat)] {
+        [
+            (0.18, 0.18), (0.32, 0.14), (0.70, 0.16), (0.84, 0.24),
+            (0.22, 0.34), (0.46, 0.30), (0.66, 0.36), (0.88, 0.46),
+            (0.12, 0.52), (0.35, 0.55), (0.58, 0.50), (0.78, 0.62),
+            (0.26, 0.72), (0.48, 0.78), (0.68, 0.76), (0.90, 0.82)
+        ]
+    }
+}
+
+extension View {
+    func romanticStepPanel(tint: Color) -> some View {
+        background {
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(hex: 0xFFF1E8).opacity(0.88),
+                        Color(hex: 0xF7D3D9).opacity(0.62),
+                        Color(hex: 0xF9E8C4).opacity(0.64)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                TaishoCheckPattern(color: tint.opacity(0.035), tile: 22)
+                WashiPattern()
+                    .opacity(0.18)
+                OmikujiRibbonLine()
+                    .stroke(Color.retroGold.opacity(0.16), style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+                    .rotationEffect(.degrees(-8))
+                    .offset(y: -20)
+                RetroCornerOrnaments(color: tint.opacity(0.24))
+                    .padding(10)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(tint.opacity(0.34), lineWidth: 1.1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.retroGold.opacity(0.34), lineWidth: 0.8).padding(7))
     }
 }
 
@@ -646,7 +1220,7 @@ struct DiarySourcePicker: View {
                     }
                 }
             }
-            .frame(height: 180)
+            .frame(height: 226)
             .clipped()
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
