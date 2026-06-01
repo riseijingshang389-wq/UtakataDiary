@@ -451,74 +451,233 @@ struct OmikujiCardCornerOrnaments: Shape {
 
 struct OmikujiResultScreen: View {
     let onClose: () -> Void
+    @GestureState private var isPressingStart = false
+    @State private var fortune = OmikujiFortune.random()
 
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth = min(proxy.size.width * 0.88, 342)
-            let cardHeight: CGFloat = 948
+            let cardWidth = min(proxy.size.width * 0.58, 226)
+            let cardHeight = min(max(proxy.size.height - 174, 500), 636)
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
+            ZStack {
+                OmikujiPreDrawFantasyLayer()
+                    .opacity(0.28)
+
+                VStack(spacing: 0) {
                     OmikujiHeader()
-                        .padding(.top, 14)
+                        .scaleEffect(0.82)
+                        .frame(height: 74)
+                        .padding(.top, 8)
 
                     ZStack {
-                        OmikujiBackdropCards()
-                            .scaleEffect(cardWidth / 258)
-                            .offset(y: 28)
-
-                        PassiveLogOmikujiCard()
+                        PassiveLogOmikujiCard(fortune: fortune)
                             .frame(width: cardWidth, height: cardHeight)
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: cardHeight + 36)
+                    .frame(height: cardHeight + 10)
+
+                    Spacer(minLength: 8)
 
                     Button(action: onClose) {
-                        Text("今日をはじめる")
-                            .font(UtakataFontStyle.retroMincho(size: 23, weight: .semibold))
-                            .foregroundStyle(Color(hex: 0xFFF8EA))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color(hex: 0x9EB29A), Color(hex: 0x6F8A77)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                in: RetroStampButtonShape()
-                            )
-                            .overlay(RetroStampButtonShape().stroke(Color(hex: 0xF4E8C8), lineWidth: 2.2))
-                            .overlay(RetroStampButtonShape().stroke(Color(hex: 0x4D5F55).opacity(0.56), lineWidth: 0.8).padding(5))
-                            .shadow(color: Color(hex: 0x4D5F55).opacity(0.18), radius: 12, x: 0, y: 6)
+                        OmikujiStartDayButton()
                     }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 0)
+                            .updating($isPressingStart) { _, state, _ in
+                                state = true
+                            }
+                    )
                     .padding(.horizontal, 32)
-                    .overlay(alignment: .trailing) {
-                        Text("短\n札")
-                            .font(UtakataFontStyle.retroMincho(size: 21, weight: .semibold))
-                            .foregroundStyle(Color.primaryText)
-                            .multilineTextAlignment(.center)
-                            .frame(width: 48, height: 64)
-                            .background(Color(hex: 0xE8E1C9), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: 0x544843), lineWidth: 1.6))
-                            .rotationEffect(.degrees(11))
-                            .offset(x: -18, y: -8)
-                    }
-
-                    HStack(spacing: 58) {
-                        Image(systemName: "house.fill")
-                        Image(systemName: "calendar")
-                        Image(systemName: "seal.fill")
-                    }
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(Color(hex: 0x4E5557))
-                    .padding(.bottom, 18)
+                    .padding(.bottom, 22)
                 }
-                .padding(.horizontal, 16)
-                .frame(width: proxy.size.width, alignment: .top)
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
         }
+    }
+}
+
+struct HaikaraBlackCat: View {
+    let isPlayful: Bool
+
+    var body: some View {
+        Image("HaikaraBlackCat")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 220, height: 158)
+            .offset(x: 46, y: -2)
+            .frame(width: 92, height: 116)
+            .clipped()
+            .blendMode(.multiply)
+            .scaleEffect(isPlayful ? 1.035 : 1)
+            .rotationEffect(.degrees(isPlayful ? -2 : 0), anchor: .bottom)
+            .offset(y: isPlayful ? -3 : 0)
+        .animation(.spring(response: 0.2, dampingFraction: 0.52), value: isPlayful)
+        .shadow(color: Color(hex: 0x1D1515).opacity(0.22), radius: 9, x: 0, y: 5)
+    }
+}
+
+struct CatEye: View {
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color(hex: 0xFFF4B4), Color(hex: 0xC57A2E), Color(hex: 0x4A2413)],
+                        center: .topLeading,
+                        startRadius: 2,
+                        endRadius: 14
+                    )
+                )
+                .frame(width: 16, height: 16)
+            Circle()
+                .fill(Color.white.opacity(0.9))
+                .frame(width: 4, height: 4)
+                .offset(x: 4, y: -5)
+            Image(systemName: "sparkle")
+                .font(.system(size: 4, weight: .bold))
+                .foregroundStyle(Color.white.opacity(0.86))
+                .offset(x: -3, y: 4)
+        }
+    }
+}
+
+struct CatEar: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.maxY), control: CGPoint(x: rect.maxX * 0.96, y: rect.minY + rect.height * 0.24))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY), control: CGPoint(x: rect.midX, y: rect.maxY * 0.82))
+        path.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.minY), control: CGPoint(x: rect.minX + rect.width * 0.06, y: rect.minY + rect.height * 0.24))
+        return path
+    }
+}
+
+struct CatTail: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + 8, y: rect.maxY - 4))
+        path.addCurve(
+            to: CGPoint(x: rect.maxX - 9, y: rect.minY + 15),
+            control1: CGPoint(x: rect.maxX * 0.90, y: rect.maxY * 0.86),
+            control2: CGPoint(x: rect.maxX * 0.86, y: rect.midY * 0.56)
+        )
+        return path
+    }
+}
+
+struct CatBody: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addCurve(to: CGPoint(x: rect.maxX, y: rect.maxY * 0.88), control1: CGPoint(x: rect.maxX * 0.92, y: rect.minY + rect.height * 0.18), control2: CGPoint(x: rect.maxX, y: rect.midY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY * 0.88), control: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addCurve(to: CGPoint(x: rect.midX, y: rect.minY), control1: CGPoint(x: rect.minX, y: rect.midY), control2: CGPoint(x: rect.minX + rect.width * 0.08, y: rect.minY + rect.height * 0.18))
+        return path
+    }
+}
+
+struct CatRibbon: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.midY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.12), control: CGPoint(x: rect.minX + rect.width * 0.20, y: rect.minY - 2))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.05, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.midY), control: CGPoint(x: rect.minX + rect.width * 0.25, y: rect.maxY * 0.86))
+        path.move(to: CGPoint(x: rect.midX, y: rect.midY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.12), control: CGPoint(x: rect.maxX - rect.width * 0.20, y: rect.minY - 2))
+        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.05, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.midY), control: CGPoint(x: rect.maxX - rect.width * 0.25, y: rect.maxY * 0.86))
+        return path
+    }
+}
+
+struct CatPaw: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path(roundedRect: CGRect(x: 0, y: 0, width: 12, height: 16), cornerRadius: 6)
+    }
+}
+
+struct CatWhiskers: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        for offset in [-7.0, 0.0, 7.0] {
+            path.move(to: CGPoint(x: rect.midX - 11, y: rect.midY + offset))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.midY + offset - 4))
+            path.move(to: CGPoint(x: rect.midX + 11, y: rect.midY + offset))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY + offset - 4))
+        }
+        return path
+    }
+}
+
+struct CatMouth: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.midY), control: CGPoint(x: rect.midX - rect.width * 0.18, y: rect.midY))
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.midY), control: CGPoint(x: rect.midX + rect.width * 0.18, y: rect.midY))
+        return path
+    }
+}
+
+struct OmikujiStartDayButton: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            OmikujiButtonFlourish()
+                .stroke(Color.retroGold.opacity(0.82), style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+                .frame(width: 34, height: 14)
+
+            Text("今日をはじめる")
+                .font(UtakataFontStyle.retroMincho(size: 22, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+
+            OmikujiButtonFlourish()
+                .stroke(Color.retroGold.opacity(0.82), style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+                .frame(width: 34, height: 14)
+                .scaleEffect(x: -1, y: 1)
+        }
+        .foregroundStyle(Color(hex: 0xFFF8EA))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 15)
+        .background(
+            LinearGradient(
+                colors: [Color(hex: 0x2E6567), Color(hex: 0x557E74), Color(hex: 0x243F47)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RetroStampButtonShape()
+        )
+        .overlay(RetroStampButtonShape().stroke(Color(hex: 0xF4E8C8), lineWidth: 2.0))
+        .overlay(RetroStampButtonShape().stroke(Color.retroGold.opacity(0.72), lineWidth: 0.8).padding(5))
+        .shadow(color: Color(hex: 0x1B4244).opacity(0.24), radius: 14, x: 0, y: 7)
+    }
+}
+
+struct OmikujiButtonFlourish: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addCurve(
+            to: CGPoint(x: rect.maxX * 0.72, y: rect.midY),
+            control1: CGPoint(x: rect.width * 0.18, y: rect.minY),
+            control2: CGPoint(x: rect.width * 0.42, y: rect.maxY)
+        )
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        path.move(to: CGPoint(x: rect.width * 0.72, y: rect.midY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.width * 0.54, y: rect.minY + 2),
+            control: CGPoint(x: rect.width * 0.60, y: rect.midY - 1)
+        )
+        path.move(to: CGPoint(x: rect.width * 0.72, y: rect.midY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.width * 0.54, y: rect.maxY - 2),
+            control: CGPoint(x: rect.width * 0.60, y: rect.midY + 1)
+        )
+        return path
     }
 }
 
@@ -557,94 +716,86 @@ struct OmikujiHeader: View {
     }
 }
 
+struct OmikujiFortune {
+    let fortune: String
+    let explanationLines: [String]
+    let item: String
+    let action: String
+    let place: String
+
+    static func random() -> OmikujiFortune {
+        all.randomElement() ?? all[0]
+    }
+
+    static let all: [OmikujiFortune] = [
+        OmikujiFortune(fortune: "あはれ吉", explanationLines: ["窓辺に射す陽光は", "微睡む時の栞となり", "ささやかな慈しみが", "心に小さな灯をともす"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "小春吉", explanationLines: ["古い歌の調べが", "遠い日の記憶を呼び", "焦らずとも春は", "すぐそこにあります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "宵待吉", explanationLines: ["夕暮れの洋灯に", "願いの輪郭が灯り", "静かな帰り道で", "心はほどけます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "薄雲吉", explanationLines: ["薄雲の向こうには", "やわらかな返事があり", "急がぬ歩みほど", "美しく届きます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "乙女吉", explanationLines: ["古い歌の調べが", "遠い日の記憶を呼び", "柔らかな春は", "すぐそこにあります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "夕映吉", explanationLines: ["夕映えの頬には", "今日の頑張りが宿り", "小さな誇らしさが", "胸に赤く灯ります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "雨音吉", explanationLines: ["雨粒の音色には", "忘れた言葉がひそみ", "濡れた硝子越しに", "記憶がきらめきます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "星屑吉", explanationLines: ["眠る前の星屑が", "小さなご褒美となり", "明日のあなたへ", "静かに降り注ぎます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "花霞吉", explanationLines: ["霞む花の色にも", "今日だけの意味があり", "曖昧な気持ちほど", "やさしく残ります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "凪吉", explanationLines: ["凪いだ心の奥に", "きれいな余白が戻り", "何もしない時間が", "あなたを整えます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "硝子吉", explanationLines: ["透ける気持ちは", "隠さぬほど澄み渡り", "素直なひと言が", "美しく響きます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "鈴音吉", explanationLines: ["小さな鈴の音が", "見落とした合図となり", "ふとした返事から", "道は開けます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "月影吉", explanationLines: ["月影に沈む憂いも", "夜の飾りへ変わり", "言えない寂しさを", "静かに包みます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "初音吉", explanationLines: ["はじめの一言が", "思うより遠くへ届き", "まだ知らぬ縁を", "そっと結びます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
+        OmikujiFortune(fortune: "浪漫吉", explanationLines: ["昨日のため息さえ", "今日の物語に縫われ", "古い切符のように", "胸で光ります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室")
+    ]
+}
+
 struct PassiveLogOmikujiCard: View {
+    let fortune: OmikujiFortune
     @AppStorage("utakataFontStyle") private var fontStyleRaw = UtakataFontStyle.mincho.rawValue
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(hex: 0x2F4E55), Color(hex: 0x20353E), Color(hex: 0x8B3E3B).opacity(0.9)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            WavePattern()
-                .stroke(Color(hex: 0xD7C799).opacity(0.18), lineWidth: 0.8)
-
-            OrnateOmikujiBorder()
-                .stroke(Color(hex: 0xE4D1A6).opacity(0.82), lineWidth: 1.1)
-                .padding(10)
-
-            VStack(spacing: 14) {
-                OmikujiTitlePlaque(fontStyle: currentFont)
-                    .padding(.top, 16)
-
-                ZStack {
-                    Color(hex: 0xFCF6E5)
-                    WashiPattern()
-                        .opacity(0.1)
-                    TaishoCheckPattern(color: Color.meijiRed.opacity(0.018), tile: 28)
-
-                    OrnateOmikujiBorder()
-                        .stroke(Color(hex: 0xB54F3F).opacity(0.32), lineWidth: 0.8)
-                        .padding(7)
-
-                    VStack(spacing: 0) {
-                        OmikujiTopStage(fontStyle: currentFont)
-
-                        DividerLine()
-                            .padding(.vertical, 18)
-
-                        OmikujiMiddleStage(fontStyle: currentFont)
-
-                        DividerLine()
-                            .padding(.vertical, 18)
-
-                        OmikujiBottomStage(fontStyle: currentFont)
-                    }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 30)
-                    .padding(.bottom, 78)
-
-                    DoveSilhouette()
-                        .fill(Color.white.opacity(0.55))
-                        .frame(width: 42, height: 27)
-                        .rotationEffect(.degrees(-12))
-                        .offset(x: -92, y: -282)
-                    DoveSilhouette()
-                        .fill(Color.white.opacity(0.42))
-                        .frame(width: 34, height: 22)
-                        .rotationEffect(.degrees(16))
-                        .offset(x: 92, y: 300)
-                }
-                .frame(minHeight: 792)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: 0x544843).opacity(0.78), lineWidth: 1.0))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(Color.retroGold.opacity(0.44), lineWidth: 0.8)
-                        .padding(8)
+        GeometryReader { proxy in
+            ZStack {
+                LinearGradient(
+                    colors: [Color(hex: 0xFFF9EA), Color(hex: 0xF7EACD), Color(hex: 0xEFE0BC)],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-                .padding(.horizontal, 18)
-                .padding(.bottom, 18)
-            }
 
-            PlumBlossom()
-                .fill(Color(hex: 0xB54F3F))
-                .frame(width: 42, height: 42)
-                .offset(x: 115, y: -260)
-            PlumBlossom()
-                .fill(Color(hex: 0xB54F3F))
-                .frame(width: 32, height: 32)
-                .offset(x: -116, y: 268)
+                WashiPattern()
+                    .opacity(0.17)
+
+                TaishoCheckPattern(color: Color.meijiRed.opacity(0.012), tile: 26)
+
+                VStack(spacing: 0) {
+                    OmikujiPaperHeader()
+                        .frame(height: proxy.size.height * 0.09)
+
+                    OmikujiPaperFortune(text: fortune.fortune)
+                        .frame(height: proxy.size.height * 0.20)
+
+                    OmikujiPaperSeparator(symbol: "◆ ◆ ◆")
+                        .padding(.vertical, proxy.size.height * 0.014)
+
+                    OmikujiPaperExplanation(lines: fortune.explanationLines)
+                        .frame(height: proxy.size.height * 0.34)
+
+                    OmikujiPaperSeparator(symbol: "◇ ◇ ◇ ◇")
+                        .padding(.vertical, proxy.size.height * 0.014)
+
+                OmikujiPaperLuckList(item: fortune.item, action: fortune.action, place: fortune.place)
+                        .frame(maxHeight: .infinity)
+                }
+                .padding(.top, 28)
+                .padding(.bottom, 16)
+                .padding(.horizontal, 16)
+
+                OmikujiPaperCornerMarks()
+                    .stroke(Color.meijiRed.opacity(0.52), style: StrokeStyle(lineWidth: 0.9, lineCap: .round, lineJoin: .round))
+                    .padding(13)
+            }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(hex: 0x544843), lineWidth: 1.6))
-        .overlay(
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .stroke(Color.retroGold.opacity(0.58), lineWidth: 0.9)
-                .padding(6)
-        )
-        .shadow(color: .black.opacity(0.24), radius: 18, x: 0, y: 12)
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: 0x2C211C).opacity(0.82), lineWidth: 1.2))
+        .overlay(RoundedRectangle(cornerRadius: 1).stroke(Color.meijiRed.opacity(0.48), lineWidth: 0.8).padding(7))
+        .shadow(color: .black.opacity(0.18), radius: 18, x: 0, y: 12)
     }
 
     private var currentFont: UtakataFontStyle {
@@ -652,11 +803,186 @@ struct PassiveLogOmikujiCard: View {
     }
 }
 
+struct OmikujiPaperHeader: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            PlumBlossom()
+                .fill(Color.meijiRed.opacity(0.58))
+                .frame(width: 10, height: 10)
+
+            Text("うたかたみくじ")
+                .font(UtakataFontStyle.retroMincho(size: 12.5, weight: .semibold))
+                .foregroundStyle(Color.primaryText.opacity(0.86))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+
+            PlumBlossom()
+                .fill(Color.meijiRed.opacity(0.58))
+                .frame(width: 10, height: 10)
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 5)
+        .background(Color(hex: 0xFFF9EA).opacity(0.72), in: TicketButtonShape())
+        .overlay(TicketButtonShape().stroke(Color(hex: 0x2C211C).opacity(0.42), lineWidth: 0.8))
+        .overlay(TicketButtonShape().stroke(Color.meijiRed.opacity(0.32), lineWidth: 0.7).padding(3))
+        .padding(.top, 2)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct OmikujiPaperFortune: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            Rectangle()
+                .fill(Color(hex: 0x2C211C).opacity(0.66))
+                .frame(width: 1, height: 94)
+
+            VerticalText(text, spacing: 5.4)
+                .font(UtakataFontStyle.retroMincho(size: 31, weight: .semibold))
+                .foregroundStyle(Color(hex: 0x11100E))
+                .frame(width: 48)
+
+            Rectangle()
+                .fill(Color(hex: 0x2C211C).opacity(0.66))
+                .frame(width: 1, height: 94)
+        }
+        .padding(.top, 8)
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "sparkle")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color.retroGold)
+                .offset(x: 15, y: 8)
+        }
+        .overlay(alignment: .bottomLeading) {
+            SakuraPetalShape()
+                .fill(Color.retroRose.opacity(0.5))
+                .frame(width: 9, height: 13)
+                .rotationEffect(.degrees(-18))
+                .offset(x: -15, y: -7)
+        }
+    }
+}
+
+struct OmikujiPaperSeparator: View {
+    let symbol: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Rectangle()
+                .fill(Color.meijiRed.opacity(0.38))
+                .frame(height: 0.8)
+            Text(symbol)
+                .font(UtakataFontStyle.retroMincho(size: 9, weight: .semibold))
+                .foregroundStyle(Color.meijiRed.opacity(0.72))
+                .lineLimit(1)
+            Rectangle()
+                .fill(Color.meijiRed.opacity(0.38))
+                .frame(height: 0.8)
+        }
+    }
+}
+
+struct OmikujiPaperExplanation: View {
+    let lines: [String]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(lines.reversed(), id: \.self) { line in
+                    VerticalText(line, spacing: 3.1)
+                        .font(UtakataFontStyle.retroMincho(size: 11.1, weight: .medium))
+                        .foregroundStyle(Color.primaryText)
+                        .frame(width: 17, alignment: .top)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
+            }
+            .frame(height: 174, alignment: .top)
+
+            VerticalText("今日の解説", spacing: 3.0)
+                .font(UtakataFontStyle.retroMincho(size: 10.2, weight: .bold))
+                .foregroundStyle(Color.meijiRed)
+                .frame(width: 18)
+                .frame(height: 130, alignment: .top)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 3)
+    }
+}
+
+struct OmikujiPaperLuckList: View {
+    let item: String
+    let action: String
+    let place: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            OmikujiPaperLuckItem(title: "場所", value: place)
+            OmikujiPaperLuckItem(title: "行動", value: action)
+            OmikujiPaperLuckItem(title: "アイテム", value: item)
+
+            VerticalText("今日の幸運", spacing: 3.0)
+                .font(UtakataFontStyle.retroMincho(size: 10.1, weight: .bold))
+                .foregroundStyle(Color.meijiRed)
+                .frame(width: 18)
+                .frame(height: 104, alignment: .top)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 7)
+    }
+}
+
+struct OmikujiPaperLuckItem: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 5) {
+            VerticalText(value, spacing: 2.35)
+                .font(UtakataFontStyle.retroMincho(size: 10.8, weight: .semibold))
+                .foregroundStyle(Color.primaryText)
+                .frame(width: 17)
+                .frame(height: 104, alignment: .top)
+
+            VerticalText(title, spacing: 2.0)
+                .font(UtakataFontStyle.retroMincho(size: 7.7, weight: .bold))
+                .foregroundStyle(Color(hex: 0x7C423B))
+                .frame(width: 11)
+                .frame(height: 104, alignment: .top)
+        }
+        .frame(width: 36, height: 104, alignment: .top)
+    }
+}
+
+struct OmikujiPaperCornerMarks: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let length = min(rect.width, rect.height) * 0.12
+
+        func mark(_ origin: CGPoint, sx: CGFloat, sy: CGFloat) {
+            path.move(to: CGPoint(x: origin.x + sx * length, y: origin.y))
+            path.addLine(to: CGPoint(x: origin.x + sx * length * 0.42, y: origin.y))
+            path.addQuadCurve(
+                to: CGPoint(x: origin.x, y: origin.y + sy * length * 0.42),
+                control: CGPoint(x: origin.x + sx * length * 0.18, y: origin.y + sy * length * 0.18)
+            )
+            path.addLine(to: CGPoint(x: origin.x, y: origin.y + sy * length))
+        }
+
+        mark(CGPoint(x: rect.minX, y: rect.minY), sx: 1, sy: 1)
+        mark(CGPoint(x: rect.maxX, y: rect.minY), sx: -1, sy: 1)
+        mark(CGPoint(x: rect.minX, y: rect.maxY), sx: 1, sy: -1)
+        mark(CGPoint(x: rect.maxX, y: rect.maxY), sx: -1, sy: -1)
+        return path
+    }
+}
+
 struct OmikujiTopStage: View {
     let fontStyle: UtakataFontStyle
 
     var body: some View {
-        HStack(alignment: .center, spacing: 18) {
+        HStack(alignment: .center, spacing: 13) {
             Spacer(minLength: 0)
 
             ZStack {
@@ -675,28 +1001,27 @@ struct OmikujiTopStage: View {
                     )
                     .shadow(color: Color.retroGold.opacity(0.18), radius: 10, x: 0, y: 5)
 
-                VerticalText("あはれ吉", spacing: 5)
-                    .font(UtakataFontStyle.retroMincho(size: 36, weight: .semibold))
+                VerticalText("あはれ吉", spacing: 4)
+                    .font(UtakataFontStyle.retroMincho(size: 31, weight: .semibold))
                     .foregroundStyle(Color(hex: 0x11100E))
-                    .frame(width: 52)
+                    .frame(width: 46)
 
                 Image(systemName: "sparkles")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.retroGold)
-                    .offset(x: -31, y: -50)
+                    .offset(x: -27, y: -40)
                 Image(systemName: "sparkle")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(Color.retroRose.opacity(0.82))
-                    .offset(x: 34, y: 48)
+                    .offset(x: 29, y: 39)
             }
-            .frame(width: 86, height: 150)
+            .frame(width: 76, height: 116)
 
             OmikujiFortuneLabel(text: "今日の運勢", fontStyle: fontStyle)
 
             Spacer(minLength: 0)
         }
-        .frame(height: 178)
-        .padding(.top, 2)
+        .frame(height: 126)
     }
 }
 
@@ -704,7 +1029,7 @@ struct OmikujiMiddleStage: View {
     let fontStyle: UtakataFontStyle
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 9) {
             OmikujiLuckyColumn(
                 title: "ラッキーアイテム",
                 value: "琥珀イヤホン",
@@ -713,21 +1038,20 @@ struct OmikujiMiddleStage: View {
 
             HStack(alignment: .top, spacing: 5) {
                 ForEach(["泡沫の日にも", "琥珀色の光が", "そっと残ります"].reversed(), id: \.self) { line in
-                    VerticalText(line, spacing: 4.2)
-                        .font(UtakataFontStyle.handLetter(size: 11.4, weight: .medium))
+                    VerticalText(line, spacing: 3.4)
+                        .font(UtakataFontStyle.retroMincho(size: 10.7, weight: .medium))
                         .foregroundStyle(Color.primaryText)
-                        .frame(width: 16, alignment: .top)
+                        .frame(width: 15, alignment: .top)
                 }
             }
             .frame(maxHeight: .infinity, alignment: .center)
-            .padding(.vertical, 20)
-            .padding(.horizontal, 12)
-            .background(Color(hex: 0xF9ECD2).opacity(0.64), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.retroGold.opacity(0.22), lineWidth: 0.8))
+            .padding(.vertical, 13)
+            .padding(.horizontal, 10)
+            .omikujiParchmentBlock(tint: Color.meijiRed)
 
             OmikujiStageTitle("今日の解説", fontStyle: fontStyle)
         }
-        .frame(height: 220)
+        .frame(height: 154)
         .padding(.horizontal, 2)
     }
 }
@@ -736,7 +1060,7 @@ struct OmikujiBottomStage: View {
     let fontStyle: UtakataFontStyle
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .center, spacing: 10) {
             OmikujiLuckyColumn(
                 title: "ラッキープレイス",
                 value: "古書店",
@@ -751,9 +1075,8 @@ struct OmikujiBottomStage: View {
 
             OmikujiStageTitle("今日の幸運", fontStyle: fontStyle)
         }
-        .frame(height: 220)
+        .frame(height: 126)
         .padding(.horizontal, 2)
-        .padding(.bottom, 6)
     }
 }
 
@@ -765,18 +1088,17 @@ struct OmikujiLuckyColumn: View {
     var body: some View {
         VStack(spacing: 10) {
             VerticalText(title, spacing: 2.2)
-                .font(UtakataFontStyle.retroMincho(size: 7.2, weight: .bold))
+                .font(UtakataFontStyle.retroMincho(size: 6.7, weight: .bold))
                 .foregroundStyle(Color(hex: 0x8B4D44))
             VerticalText(value, spacing: 3)
-                .font(UtakataFontStyle.handLetter(size: 10.2, weight: .semibold))
+                .font(UtakataFontStyle.retroMincho(size: 9.6, weight: .semibold))
                 .foregroundStyle(Color.primaryText)
         }
-        .frame(width: 48)
-        .frame(minHeight: 178, alignment: .center)
-        .padding(.vertical, 12)
-        .padding(.horizontal, 6)
-        .background(Color(hex: 0xF9ECD2).opacity(0.64), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.retroGold.opacity(0.22), lineWidth: 0.8))
+        .frame(width: 44)
+        .frame(maxHeight: .infinity, alignment: .center)
+        .padding(.vertical, 9)
+        .padding(.horizontal, 5)
+        .omikujiParchmentBlock(tint: Color.meijiRed)
     }
 }
 
@@ -806,6 +1128,17 @@ struct OmikujiStageTitle: View {
                 .frame(width: 13, height: 13)
                 .offset(y: -48)
 
+            Image(systemName: "sparkles")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(Color.retroGold)
+                .offset(x: -13, y: -30)
+
+            SakuraPetalShape()
+                .fill(Color(hex: 0xF4B7C2).opacity(0.82))
+                .frame(width: 7, height: 10)
+                .rotationEffect(.degrees(28))
+                .offset(x: 13, y: 34)
+
             VerticalText(text, spacing: 3.5)
                 .font(UtakataFontStyle.retroMincho(size: 10.4, weight: .bold))
                 .foregroundStyle(Color.retroPaper)
@@ -813,6 +1146,31 @@ struct OmikujiStageTitle: View {
                 .frame(width: 26)
         }
         .frame(width: 30, height: 122)
+    }
+}
+
+private extension View {
+    func omikujiParchmentBlock(tint: Color) -> some View {
+        background {
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(hex: 0xFFF8EA).opacity(0.94),
+                        Color(hex: 0xF3E2C3).opacity(0.86),
+                        Color(hex: 0xEAD0A8).opacity(0.52)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                WashiPattern()
+                    .opacity(0.16)
+                MemoryCornerRibbons(color: tint.opacity(0.72))
+                    .padding(2)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.meijiRed.opacity(0.26), lineWidth: 0.75))
+        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.retroGold.opacity(0.48), lineWidth: 0.7).padding(4))
     }
 }
 

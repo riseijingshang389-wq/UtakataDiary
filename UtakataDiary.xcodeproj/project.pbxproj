@@ -13,10 +13,10 @@
 		6EE34EFB2FC6B283008EF693 /* Diary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFA2FC6B283008EF693 /* Diary.swift */; };
 		6EE34EFD2FC6B2B6008EF693 /* Memory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFC2FC6B2B6008EF693 /* Memory.swift */; };
 		6EE34EFF2FC9B52F008EF693 /* Setting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFE2FC9B52F008EF693 /* Setting.swift */; };
-		9A0000012FD0000000000004 /* ZenMaruGothic-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000001 /* ZenMaruGothic-Regular.ttf */; };
-		9A0000012FD0000000000005 /* Yomogi-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000002 /* Yomogi-Regular.ttf */; };
-		9A0000012FD0000000000006 /* SawarabiMincho-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000003 /* SawarabiMincho-Regular.ttf */; };
 		8A7F5B882C0A000100000001 /* Assets.xcassets in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A7F5B872C0A000100000001 /* Assets.xcassets */; };
+		9A0000012FD0000000000004 /* Resources/Fonts/ZenMaruGothic-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000001 /* Resources/Fonts/ZenMaruGothic-Regular.ttf */; };
+		9A0000012FD0000000000005 /* Resources/Fonts/Yomogi-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000002 /* Resources/Fonts/Yomogi-Regular.ttf */; };
+		9A0000012FD0000000000006 /* Resources/Fonts/SawarabiMincho-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000003 /* Resources/Fonts/SawarabiMincho-Regular.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,12 +26,12 @@
 		6EE34EFA2FC6B283008EF693 /* Diary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diary.swift; sourceTree = "<group>"; };
 		6EE34EFC2FC6B2B6008EF693 /* Memory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Memory.swift; sourceTree = "<group>"; };
 		6EE34EFE2FC9B52F008EF693 /* Setting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Setting.swift; sourceTree = "<group>"; };
-		9A0000012FD0000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		9A0000012FD0000000000001 /* ZenMaruGothic-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Resources/Fonts/ZenMaruGothic-Regular.ttf; sourceTree = "<group>"; };
-		9A0000012FD0000000000002 /* Yomogi-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Resources/Fonts/Yomogi-Regular.ttf; sourceTree = "<group>"; };
-		9A0000012FD0000000000003 /* SawarabiMincho-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Resources/Fonts/SawarabiMincho-Regular.ttf; sourceTree = "<group>"; };
 		8A7F5B7A2C0A000100000001 /* UtakataDiary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UtakataDiary.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A7F5B872C0A000100000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		9A0000012FD0000000000001 /* Resources/Fonts/ZenMaruGothic-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Resources/Fonts/ZenMaruGothic-Regular.ttf"; sourceTree = "<group>"; };
+		9A0000012FD0000000000002 /* Resources/Fonts/Yomogi-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Resources/Fonts/Yomogi-Regular.ttf"; sourceTree = "<group>"; };
+		9A0000012FD0000000000003 /* Resources/Fonts/SawarabiMincho-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Resources/Fonts/SawarabiMincho-Regular.ttf"; sourceTree = "<group>"; };
+		9A0000012FD0000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,9 +73,9 @@
 				6EA587A22FC2D65100B05C08 /* UtakataDiaryApp.swift */,
 				9A0000012FD0000000000007 /* Info.plist */,
 				8A7F5B872C0A000100000001 /* Assets.xcassets */,
-				9A0000012FD0000000000001 /* ZenMaruGothic-Regular.ttf */,
-				9A0000012FD0000000000002 /* Yomogi-Regular.ttf */,
-				9A0000012FD0000000000003 /* SawarabiMincho-Regular.ttf */,
+				9A0000012FD0000000000001 /* Resources/Fonts/ZenMaruGothic-Regular.ttf */,
+				9A0000012FD0000000000002 /* Resources/Fonts/Yomogi-Regular.ttf */,
+				9A0000012FD0000000000003 /* Resources/Fonts/SawarabiMincho-Regular.ttf */,
 			);
 			path = UtakataDiary;
 			sourceTree = "<group>";
@@ -143,9 +143,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9A0000012FD0000000000004 /* ZenMaruGothic-Regular.ttf in Resources */,
-				9A0000012FD0000000000005 /* Yomogi-Regular.ttf in Resources */,
-				9A0000012FD0000000000006 /* SawarabiMincho-Regular.ttf in Resources */,
+				9A0000012FD0000000000004 /* Resources/Fonts/ZenMaruGothic-Regular.ttf in Resources */,
+				9A0000012FD0000000000005 /* Resources/Fonts/Yomogi-Regular.ttf in Resources */,
+				9A0000012FD0000000000006 /* Resources/Fonts/SawarabiMincho-Regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -306,16 +306,12 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "日記カードに使う写真を撮影するためにカメラを使います。";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "写真の日時や色の気配から、今日の上の句を生成するために使います。";
-				INFOPLIST_KEY_UIAppFonts = (
-					"ZenMaruGothic-Regular.ttf",
-					"Yomogi-Regular.ttf",
-					"SawarabiMincho-Regular.ttf",
-				);
+				INFOPLIST_KEY_UIAppFonts = "ZenMaruGothic-Regular.ttf Yomogi-Regular.ttf SawarabiMincho-Regular.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -349,16 +345,12 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "日記カードに使う写真を撮影するためにカメラを使います。";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "写真の日時や色の気配から、今日の上の句を生成するために使います。";
-				INFOPLIST_KEY_UIAppFonts = (
-					"ZenMaruGothic-Regular.ttf",
-					"Yomogi-Regular.ttf",
-					"SawarabiMincho-Regular.ttf",
-				);
+				INFOPLIST_KEY_UIAppFonts = "ZenMaruGothic-Regular.ttf Yomogi-Regular.ttf SawarabiMincho-Regular.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

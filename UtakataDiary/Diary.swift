@@ -4,6 +4,328 @@ import UIKit
 
 struct TodayView: View {
     @Binding var savedCards: [DiaryCard]
+    let onOpenSettings: () -> Void
+    let onDiaryCreated: (Date) -> Void
+    @State private var showingComposer = false
+    @State private var selectedDate = Date.now
+    @State private var visibleMonth = Date.now
+
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "ja_JP")
+        return calendar
+    }
+
+    private var selectedCard: DiaryCard? {
+        savedCards.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack(alignment: .bottomTrailing) {
+                OmikujiPreDrawFantasyLayer()
+                    .opacity(0.52)
+                    .ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 18) {
+                        ScreenHeaderWithSettings(
+                            title: "日記",
+                            subtitle: "カレンダー",
+                            onOpenSettings: onOpenSettings
+                        )
+                            .padding(.top, 4)
+
+                        DiaryCalendarBoard(
+                            cards: savedCards,
+                            visibleMonth: $visibleMonth,
+                            selectedDate: $selectedDate
+                        )
+
+                        DiarySelectedDayLog(
+                            date: selectedDate,
+                            card: selectedCard
+                        ) {
+                            showingComposer = true
+                        }
+
+                        Spacer(minLength: 170)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 18)
+                    .padding(.bottom, 126)
+                }
+
+                FloatingDiaryActionButton {
+                    showingComposer = true
+                }
+                .padding(.trailing, 24)
+                .padding(.bottom, 148)
+            }
+            .navigationBarHidden(true)
+            .sheet(isPresented: $showingComposer) {
+                DiaryComposerView { card in
+                    if !savedCards.contains(where: { Calendar.current.isDate($0.date, inSameDayAs: card.date) }) {
+                        savedCards.insert(card, at: 0)
+                    }
+                    selectedDate = card.date
+                    visibleMonth = card.date
+                    onDiaryCreated(card.date)
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+        }
+    }
+}
+
+struct DiaryCalendarBoard: View {
+    let cards: [DiaryCard]
+    @Binding var visibleMonth: Date
+    @Binding var selectedDate: Date
+
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "ja_JP")
+        return calendar
+    }
+
+    private var monthTitle: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "yyyy年M月"
+        return formatter.string(from: visibleMonth)
+    }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            HStack {
+                Button {
+                    moveMonth(-1)
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.meijiRed.opacity(0.78))
+                        .frame(width: 40, height: 40)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Text(monthTitle)
+                    .font(UtakataFontStyle.rounded(size: 26, weight: .semibold))
+                    .foregroundStyle(Color.primaryText)
+
+                Spacer()
+
+                Button {
+                    moveMonth(1)
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.meijiRed.opacity(0.78))
+                        .frame(width: 40, height: 40)
+                }
+                .buttonStyle(.plain)
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 15) {
+                ForEach(["月", "火", "水", "木", "金", "土", "日"], id: \.self) { weekday in
+                    Text(weekday)
+                        .font(UtakataFontStyle.rounded(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.secondaryText.opacity(0.86))
+                        .frame(maxWidth: .infinity)
+                }
+
+                ForEach(calendarCells, id: \.self) { date in
+                    let hasCard = cards.contains { calendar.isDate($0.date, inSameDayAs: date) }
+                    DiaryLargeCalendarDayCell(
+                        date: date,
+                        belongsToVisibleMonth: calendar.isDate(date, equalTo: visibleMonth, toGranularity: .month),
+                        hasCard: hasCard,
+                        isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                        symbol: calendarSymbol(for: date)
+                    ) {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+                            selectedDate = date
+                            if !calendar.isDate(date, equalTo: visibleMonth, toGranularity: .month) {
+                                visibleMonth = date
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 18)
+        .padding(.bottom, 22)
+        .background {
+            ZStack {
+                LinearGradient(
+                    colors: [Color(hex: 0xFFF9F1).opacity(0.92), Color(hex: 0xF8E3D6).opacity(0.82)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                WashiPattern()
+                    .opacity(0.18)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.meijiRed.opacity(0.24), lineWidth: 1.0))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.retroGold.opacity(0.34), lineWidth: 0.8).padding(6))
+        .shadow(color: Color.meijiRed.opacity(0.08), radius: 18, x: 0, y: 8)
+    }
+
+    private var calendarCells: [Date] {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: visibleMonth) else { return [] }
+        let firstDay = monthInterval.start
+        let weekday = calendar.component(.weekday, from: firstDay)
+        let mondayBasedOffset = (weekday + 5) % 7
+        let gridStart = calendar.date(byAdding: .day, value: -mondayBasedOffset, to: firstDay) ?? firstDay
+        return (0..<42).compactMap { calendar.date(byAdding: .day, value: $0, to: gridStart) }
+    }
+
+    private func moveMonth(_ value: Int) {
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+            visibleMonth = calendar.date(byAdding: .month, value: value, to: visibleMonth) ?? visibleMonth
+            selectedDate = calendar.dateInterval(of: .month, for: visibleMonth)?.start ?? visibleMonth
+        }
+    }
+
+    private func calendarSymbol(for day: Date) -> String {
+        switch calendar.component(.day, from: day) % 4 {
+        case 0: return "sun.max.fill"
+        case 1: return "wind"
+        case 2: return "leaf.fill"
+        default: return "drop.fill"
+        }
+    }
+}
+
+struct DiaryLargeCalendarDayCell: View {
+    let date: Date
+    let belongsToVisibleMonth: Bool
+    let hasCard: Bool
+    let isSelected: Bool
+    let symbol: String
+    let action: () -> Void
+
+    private var dayNumber: Int {
+        Calendar.current.component(.day, from: date)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Text("\(dayNumber)")
+                    .font(UtakataFontStyle.rounded(size: 20, weight: isSelected ? .semibold : .medium))
+                    .foregroundStyle(textColor)
+                    .monospacedDigit()
+
+                if hasCard {
+                    Image(systemName: symbol)
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(isSelected ? Color.retroPaper : Color.meijiRed.opacity(0.82))
+                } else {
+                    Circle()
+                        .fill(Color.clear)
+                        .frame(width: 8, height: 8)
+                }
+            }
+            .frame(height: 48)
+            .frame(maxWidth: .infinity)
+            .background {
+                if isSelected {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color(hex: 0xFAD7D9), Color.retroRose.opacity(0.72), Color.meijiRed.opacity(0.38)],
+                                center: .topLeading,
+                                startRadius: 4,
+                                endRadius: 34
+                            )
+                        )
+                        .frame(width: 48, height: 48)
+                } else if hasCard {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color(hex: 0xFFF3C8), Color.retroGold.opacity(0.34), .clear],
+                                center: .center,
+                                startRadius: 2,
+                                endRadius: 28
+                            )
+                        )
+                        .frame(width: 38, height: 38)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(dayNumber)日")
+    }
+
+    private var textColor: Color {
+        if isSelected { return Color.retroPaper }
+        return belongsToVisibleMonth ? Color.primaryText : Color.secondaryText.opacity(0.54)
+    }
+}
+
+struct DiarySelectedDayLog: View {
+    let date: Date
+    let card: DiaryCard?
+    let onCreate: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(date.japaneseMonthDay)
+                        .font(UtakataFontStyle.retroMincho(size: 23, weight: .semibold))
+                        .foregroundStyle(Color.primaryText)
+                    Text(card == nil ? "投稿がありません" : "この日のうたかた")
+                        .font(UtakataFontStyle.rounded(size: 13, weight: .medium))
+                        .foregroundStyle(Color.secondaryText)
+                }
+
+                Spacer()
+
+                if card == nil {
+                    Button(action: onCreate) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(Color.retroPaper)
+                            .frame(width: 36, height: 36)
+                            .background(Color.meijiRed, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if let card {
+                MemoryPreviewCard(card: card)
+            } else {
+                VStack(spacing: 10) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundStyle(Color.meijiRed.opacity(0.72))
+                    Text("この日の光や気持ちは、まだ札になっていません。")
+                        .font(UtakataFontStyle.rounded(size: 14, weight: .medium))
+                        .foregroundStyle(Color.secondaryText)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 34)
+                .background(Color.retroPaper.opacity(0.44), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.retroGold.opacity(0.28), lineWidth: 0.9))
+            }
+        }
+        .padding(18)
+        .taishoPanel(tint: card?.mood.accent ?? Color.meijiRed)
+    }
+}
+
+struct LegacyDiaryHome: View {
+    @Binding var savedCards: [DiaryCard]
     let onDiaryCreated: (Date) -> Void
     @State private var showingComposer = false
 
@@ -361,7 +683,14 @@ struct EmptyDiaryHint: View {
 struct DiaryComposerView: View {
     let onCreate: (DiaryCard) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var photoData: Data?
+    @State private var showingCamera = false
+    @State private var mode = DiaryComposerMode.ai
     @State private var factText = ""
+    @State private var manualUpperText = ""
+    @State private var manualLowerText = ""
+    @State private var manualHint: String?
     @State private var selectedTone = DiaryTone.joy
     @State private var selectedLowerIndex = 0
     @State private var isStoring = false
@@ -371,12 +700,36 @@ struct DiaryComposerView: View {
         selectedTone.lowerOptions[safe: selectedLowerIndex] ?? selectedTone.lowerOptions[0]
     }
 
+    private var effectiveLowerPhrase: String {
+        switch mode {
+        case .ai:
+            return currentLowerPhrase
+        case .manual:
+            return manualLowerText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+
     private var generatedUpperPhrase: [String] {
         DiaryFactPhraseGenerator.upperPhrase(from: factText, tone: selectedTone)
     }
 
+    private var effectiveUpperPhrase: [String] {
+        switch mode {
+        case .ai:
+            return generatedUpperPhrase
+        case .manual:
+            return DiaryManualPhraseFormatter.upperLines(from: manualUpperText)
+        }
+    }
+
     private var canStore: Bool {
-        !factText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch mode {
+        case .ai:
+            return !factText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .manual:
+            return !manualUpperText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !manualLowerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     }
 
     var body: some View {
@@ -390,20 +743,51 @@ struct DiaryComposerView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HeaderView(title: "日記を作成", subtitle: "5秒で一首")
 
-                    FactInputStep(factText: $factText)
+                    DiaryComposerModeSwitcher(mode: $mode)
+
+                    DiarySourcePicker(
+                        photoData: photoData,
+                        selectedItem: $selectedPhotoItem,
+                        onCameraTap: { showingCamera = true }
+                    )
+
+                    if mode == .ai {
+                        FactInputStep(factText: $factText)
+                    } else {
+                        ManualTextAreaStep(
+                            number: "1",
+                            title: "上の句を紡ぐ",
+                            placeholder: "例：夕暮れの駅で、雨あがりの光を見た",
+                            text: $manualUpperText,
+                            hint: manualHint,
+                            onHint: showManualHint
+                        )
+                    }
 
                     TonePickerStep(selectedTone: $selectedTone, selectedLowerIndex: $selectedLowerIndex)
 
-                    LowerPhraseSlotStep(
-                        tone: selectedTone,
-                        selectedIndex: $selectedLowerIndex
-                    )
+                    if mode == .ai {
+                        LowerPhraseSlotStep(
+                            tone: selectedTone,
+                            selectedIndex: $selectedLowerIndex
+                        )
+                    } else {
+                        ManualTextAreaStep(
+                            number: "3",
+                            title: "下の句を入力する",
+                            placeholder: "例：手紙を綴るように 今日をしまう",
+                            text: $manualLowerText,
+                            hint: manualHint,
+                            onHint: showManualHint
+                        )
+                    }
 
                     if canStore {
                         CompletedTankaStep(
-                            upperPhrase: generatedUpperPhrase,
-                            lowerPhrase: currentLowerPhrase,
+                            upperPhrase: effectiveUpperPhrase,
+                            lowerPhrase: effectiveLowerPhrase,
                             mood: selectedTone.mood,
+                            photoData: photoData,
                             isStoring: isStoring
                         )
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -442,6 +826,34 @@ struct DiaryComposerView: View {
                     .allowsHitTesting(false)
             }
         }
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            Task {
+                guard let data = try? await newItem?.loadTransferable(type: Data.self) else { return }
+                await MainActor.run {
+                    photoData = data
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraPicker { image in
+                photoData = image.jpegData(compressionQuality: 0.84)
+                showingCamera = false
+            } onCancel: {
+                showingCamera = false
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private func showManualHint() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            manualHint = DiaryManualHintGenerator.hint(
+                upperText: manualUpperText,
+                factText: factText,
+                tone: selectedTone,
+                hasPhoto: photoData != nil
+            )
+        }
     }
 
     private func storeCard() {
@@ -464,12 +876,74 @@ struct DiaryComposerView: View {
     private func makeCard() -> DiaryCard {
         DiaryCard(
             date: .now,
-            upperPhrase: generatedUpperPhrase,
-            lowerPhrase: currentLowerPhrase,
+            upperPhrase: effectiveUpperPhrase,
+            lowerPhrase: effectiveLowerPhrase,
             mood: selectedTone.mood,
-            placeHint: factText.trimmingCharacters(in: .whitespacesAndNewlines),
-            photoData: nil
+            placeHint: mode == .ai
+                ? factText.trimmingCharacters(in: .whitespacesAndNewlines)
+                : manualUpperText.trimmingCharacters(in: .whitespacesAndNewlines),
+            photoData: photoData
         )
+    }
+}
+
+enum DiaryComposerMode: String, CaseIterable, Hashable {
+    case ai
+    case manual
+
+    var title: String {
+        switch self {
+        case .ai: return "おまかせ（AI）"
+        case .manual: return "じぶん綴り（手書き）"
+        }
+    }
+}
+
+struct DiaryComposerModeSwitcher: View {
+    @Binding var mode: DiaryComposerMode
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(DiaryComposerMode.allCases, id: \.self) { item in
+                Button {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                        mode = item
+                    }
+                } label: {
+                    Text(item.title)
+                        .font(UtakataFontStyle.rounded(size: 14, weight: .semibold))
+                        .foregroundStyle(mode == item ? Color.retroPaper : Color.primaryText.opacity(0.76))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            mode == item
+                            ? LinearGradient(
+                                colors: [Color.meijiRed, Color.retroRose],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            : LinearGradient(
+                                colors: [Color.clear, Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(5)
+        .background {
+            ZStack {
+                Color(hex: 0xFFF9F2).opacity(0.86)
+                WashiPattern()
+                    .opacity(0.10)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.meijiRed.opacity(0.22), lineWidth: 0.8))
+        .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.retroGold.opacity(0.26), lineWidth: 0.7).padding(4))
     }
 }
 
@@ -570,6 +1044,80 @@ enum DiaryFactPhraseGenerator {
     }
 }
 
+enum DiaryManualPhraseFormatter {
+    static func upperLines(from text: String) -> [String] {
+        let lines = text
+            .replacingOccurrences(of: "　", with: " ")
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        if lines.count >= 3 {
+            return Array(lines.prefix(3)).map { $0.shortPoemLine(limit: 9) }
+        }
+
+        let compacted = text
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "　", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !compacted.isEmpty else {
+            return ["上の句を", "ここに紡いで", "札にする"]
+        }
+
+        if lines.count == 2 {
+            return [lines[0].shortPoemLine(limit: 9), lines[1].shortPoemLine(limit: 9), "今日残る"]
+        }
+
+        let characters = Array(compacted.replacingOccurrences(of: " ", with: ""))
+        let firstEnd = min(5, characters.count)
+        let secondEnd = min(firstEnd + 7, characters.count)
+        let first = String(characters.prefix(firstEnd))
+        let second = String(characters.dropFirst(firstEnd).prefix(max(0, secondEnd - firstEnd)))
+        let third = String(characters.dropFirst(secondEnd))
+
+        return [
+            first.isEmpty ? "ひとことを" : first.shortPoemLine(limit: 9),
+            second.isEmpty ? "胸にしまって" : second.shortPoemLine(limit: 9),
+            third.isEmpty ? "今日残る" : third.shortPoemLine(limit: 9)
+        ]
+    }
+}
+
+enum DiaryManualHintGenerator {
+    static func hint(upperText: String, factText: String, tone: DiaryTone, hasPhoto: Bool) -> String {
+        let source = (upperText.isEmpty ? factText : upperText)
+        let normalized = source.replacingOccurrences(of: "　", with: " ")
+
+        if normalized.contains("雨") {
+            return "雨粒、硝子、濡れた街灯"
+        }
+        if normalized.contains("空") || normalized.contains("雲") {
+            return "薄青、雲ほどけ、風の余白"
+        }
+        if normalized.contains("駅") || normalized.contains("電車") {
+            return "改札、夕灯、ホームの余韻"
+        }
+        if normalized.contains("夜") {
+            return "月影、部屋の灯、言えない余白"
+        }
+        if hasPhoto {
+            return "写真の端に残った、淡い光"
+        }
+
+        switch tone {
+        case .joy:
+            return "小さな祝福、胸の灯、帰り道"
+        case .sorrow:
+            return "ため息、月の影、静かな袖"
+        case .calm:
+            return "湯気、やわらかな風、午後の余白"
+        case .anger:
+            return "赤い頬、ほどける言葉、夜風"
+        }
+    }
+}
+
 extension Array {
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
@@ -617,7 +1165,7 @@ struct FactInputStep: View {
         DiaryFormSection {
             StepSectionTitle(number: "1", title: "今日の事実")
 
-            TextField("例：スタバ新作飲んだ", text: $factText)
+            TextField("今日あった事実をボソッと1行…", text: $factText)
                 .textFieldStyle(.plain)
                 .font(.body)
                 .foregroundStyle(Color.primaryText)
@@ -625,6 +1173,81 @@ struct FactInputStep: View {
                 .padding(.vertical, 15)
                 .background(Color(hex: 0xFFF9F2).opacity(0.9), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.retroGold.opacity(0.28), lineWidth: 0.8))
+        }
+    }
+}
+
+struct ManualTextAreaStep: View {
+    let number: String
+    let title: String
+    let placeholder: String
+    @Binding var text: String
+    let hint: String?
+    let onHint: () -> Void
+
+    var body: some View {
+        DiaryFormSection {
+            HStack(alignment: .center, spacing: 10) {
+                StepSectionTitle(number: number, title: title)
+
+                Spacer(minLength: 8)
+
+                Button(action: onHint) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "sparkles")
+                            .font(.caption.weight(.bold))
+                        Text("言葉が降りてこない時（AIヒント）")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    }
+                    .font(UtakataFontStyle.rounded(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.meijiRed)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: 0xFFF2E6).opacity(0.82), in: Capsule())
+                    .overlay(Capsule().stroke(Color.retroGold.opacity(0.32), lineWidth: 0.8))
+                }
+                .buttonStyle(.plain)
+            }
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $text)
+                    .font(UtakataFontStyle.rounded(size: 15, weight: .regular))
+                    .foregroundStyle(Color.primaryText)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 9)
+                    .frame(minHeight: 118)
+
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(placeholder)
+                        .font(UtakataFontStyle.rounded(size: 14, weight: .medium))
+                        .foregroundStyle(Color.secondaryText.opacity(0.62))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 18)
+                        .allowsHitTesting(false)
+                }
+            }
+            .background(Color(hex: 0xFFF9F2).opacity(0.9), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.retroGold.opacity(0.28), lineWidth: 0.8))
+
+            if let hint {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "quote.opening")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.retroGold)
+                    Text(hint)
+                        .font(UtakataFontStyle.handLetter(size: 14, weight: .regular))
+                        .foregroundStyle(Color.primaryText.opacity(0.82))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.retroPaper.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.meijiRed.opacity(0.16), lineWidth: 0.8))
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 }
@@ -805,7 +1428,9 @@ struct CompletedTankaStep: View {
     let upperPhrase: [String]
     let lowerPhrase: String
     let mood: CardMood
+    let photoData: Data?
     let isStoring: Bool
+    @State private var didOpen = false
 
     var body: some View {
         DiaryFormSection {
@@ -816,13 +1441,16 @@ struct CompletedTankaStep: View {
                 TankaOmikujiPreviewCard(
                     upperPhrase: upperPhrase,
                     lowerPhrase: lowerPhrase,
-                    accent: mood.accent
+                    accent: mood.accent,
+                    photoData: photoData
                 )
                 .frame(width: 232, height: 358)
+                .rotation3DEffect(.degrees(didOpen ? 0 : -78), axis: (x: 0, y: 1, z: 0), anchor: .leading, perspective: 0.72)
                 .scaleEffect(isStoring ? 0.42 : 1)
                 .offset(x: isStoring ? 92 : 0, y: isStoring ? 142 : 0)
                 .rotationEffect(.degrees(isStoring ? 8 : 0))
-                .opacity(isStoring ? 0.28 : 1)
+                .opacity(didOpen ? (isStoring ? 0.28 : 1) : 0.2)
+                .animation(.spring(response: 0.62, dampingFraction: 0.82), value: didOpen)
                 Spacer()
             }
 
@@ -834,6 +1462,12 @@ struct CompletedTankaStep: View {
             .foregroundStyle(Color.secondaryText)
             .frame(maxWidth: .infinity, alignment: .center)
         }
+        .onAppear {
+            didOpen = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                didOpen = true
+            }
+        }
     }
 }
 
@@ -841,49 +1475,80 @@ struct TankaOmikujiPreviewCard: View {
     let upperPhrase: [String]
     let lowerPhrase: String
     let accent: Color
+    let photoData: Data?
 
     private var allLines: [String] {
         Array(upperPhrase.prefix(3)) + lowerPhrase.tankaLowerLines()
     }
 
+    private var selectedImage: Image? {
+        guard
+            let photoData,
+            let uiImage = UIImage(data: photoData)
+        else { return nil }
+
+        return Image(uiImage: uiImage)
+    }
+
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color(hex: 0xFFF8EA), Color(hex: 0xF4DFBE), accent.opacity(0.16)],
-                startPoint: .top,
-                endPoint: .bottom
+                colors: [
+                    Color(hex: 0xFFF5EC),
+                    Color(hex: 0xF5DCE5),
+                    Color(hex: 0xD8ECF2),
+                    accent.opacity(0.14)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
 
             WashiPattern()
-                .opacity(0.18)
+                .opacity(0.24)
 
             TaishoCheckPattern(color: Color.meijiRed.opacity(0.025), tile: 24)
 
             OrnateOmikujiBorder()
-                .stroke(Color.primaryText.opacity(0.46), lineWidth: 1)
+                .stroke(Color.retroGold.opacity(0.58), lineWidth: 1)
                 .padding(10)
 
             OrnateOmikujiBorder()
-                .stroke(Color.retroGold.opacity(0.5), lineWidth: 0.8)
+                .stroke(Color.meijiRed.opacity(0.22), lineWidth: 0.8)
                 .padding(18)
 
-            HStack(alignment: .top, spacing: 8) {
-                ForEach(Array(allLines.enumerated()).reversed(), id: \.offset) { index, line in
-                    VerticalPoemLine(
-                        text: line,
-                        isLowerPhrase: index >= 3,
-                        accent: accent,
-                        compact: false,
-                        isOpeningLine: index == 0
-                    )
+            VStack(spacing: 12) {
+                if let selectedImage {
+                    RetroPhotoFrame(image: selectedImage)
+                        .frame(height: 118)
+                        .padding(.horizontal, 27)
+                        .padding(.top, 46)
+                } else {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(hex: 0xFFF9F2).opacity(0.44))
+                        .frame(height: 56)
+                        .padding(.horizontal, 42)
+                        .padding(.top, 58)
                 }
+
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(Array(allLines.enumerated()).reversed(), id: \.offset) { index, line in
+                        VerticalPoemLine(
+                            text: line,
+                            isLowerPhrase: index >= 3,
+                            accent: accent,
+                            compact: false,
+                            isOpeningLine: index == 0
+                        )
+                    }
+                }
+                .frame(maxHeight: .infinity, alignment: .center)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 30)
             }
-            .padding(.vertical, 44)
-            .padding(.horizontal, 30)
 
             VStack {
                 Text("うたかた日記")
-                    .font(UtakataFontStyle.retroMincho(size: 14, weight: .semibold))
+                    .font(UtakataFontStyle.retroMincho(size: 13, weight: .semibold))
                     .foregroundStyle(Color.primaryText.opacity(0.8))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 6)
@@ -892,9 +1557,13 @@ struct TankaOmikujiPreviewCard: View {
                 Spacer()
             }
             .padding(.top, 18)
+
+            MemoryCornerRibbons(color: accent)
+                .padding(10)
         }
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primaryText.opacity(0.4), lineWidth: 1.1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.meijiRed.opacity(0.25), lineWidth: 1.1))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.retroGold.opacity(0.48), lineWidth: 0.8).padding(6))
         .shadow(color: accent.opacity(0.18), radius: 16, x: 0, y: 10)
     }
 }
@@ -912,6 +1581,18 @@ struct DiaryStoreSparkleBurst: View {
                             y: proxy.size.height * sparklePositions[index % sparklePositions.count].1
                         )
                 }
+
+                ForEach(0..<5, id: \.self) { index in
+                    DoveSilhouette()
+                        .fill(Color.white.opacity(0.72))
+                        .frame(width: CGFloat(30 + index * 5), height: CGFloat(20 + index * 3))
+                        .rotationEffect(.degrees(Double([-14, 9, -4, 18, -20][index])))
+                        .position(
+                            x: proxy.size.width * dovePositions[index].0,
+                            y: proxy.size.height * dovePositions[index].1
+                        )
+                        .shadow(color: Color.retroGold.opacity(0.12), radius: 8, x: 0, y: 3)
+                }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .background(Color(hex: 0xFFF8EA).opacity(0.12))
@@ -925,6 +1606,10 @@ struct DiaryStoreSparkleBurst: View {
             (0.12, 0.52), (0.35, 0.55), (0.58, 0.50), (0.78, 0.62),
             (0.26, 0.72), (0.48, 0.78), (0.68, 0.76), (0.90, 0.82)
         ]
+    }
+
+    private var dovePositions: [(CGFloat, CGFloat)] {
+        [(0.18, 0.28), (0.76, 0.24), (0.32, 0.48), (0.82, 0.58), (0.55, 0.34)]
     }
 }
 
@@ -1180,55 +1865,94 @@ struct DiarySourcePicker: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            StepSectionTitle(number: "1", title: "写真を選ぶ / 撮る")
+        DiaryFormSection {
+            StepSectionTitle(number: "0", title: "写真")
 
-            HStack(spacing: 12) {
-                PhotosPicker(selection: $selectedItem, matching: .images) {
-                    SourceActionTile(title: "写真を選択", systemImage: "photo.on.rectangle")
-                }
-                .buttonStyle(.plain)
+            VStack(spacing: 13) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color(hex: 0xFFF9F2).opacity(0.78))
+                    TaishoCheckPattern(color: Color.meijiBlue.opacity(0.05), tile: 20)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                Button(action: onCameraTap) {
-                    SourceActionTile(title: "カメラで撮影", systemImage: "camera")
-                }
-                .buttonStyle(.plain)
-            }
-
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.retroPaper.opacity(0.56))
-                TaishoCheckPattern(color: Color.meijiBlue.opacity(0.08), tile: 18)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                if let selectedImage {
-                    selectedImage
-                        .resizable()
-                        .scaledToFill()
-                        .overlay(
-                            LinearGradient(colors: [.clear, .black.opacity(0.18)], startPoint: .top, endPoint: .bottom)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                } else {
-                    VStack(spacing: 10) {
-                        Image(systemName: "photo.badge.plus")
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundStyle(Color.utakataAccent)
-                        Text("写真を入れると、上の句が表示されます")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.secondaryText)
+                    if let selectedImage {
+                        RetroPhotoFrame(image: selectedImage)
+                            .padding(10)
+                    } else {
+                        VStack(spacing: 11) {
+                            Image(systemName: "photo.badge.plus")
+                                .font(.system(size: 34, weight: .semibold))
+                                .foregroundStyle(Color.meijiRed)
+                            Text("今日の一枚を入れる")
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(Color.primaryText)
+                            Text("撮るか、ライブラリから選べます")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(Color.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
+                .frame(height: 226)
+                .clipped()
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.34), lineWidth: 0.8))
+
+                HStack(spacing: 12) {
+                    Button(action: onCameraTap) {
+                        SourceActionTile(title: photoData == nil ? "写真を撮る" : "撮り直す", systemImage: "camera.fill")
+                    }
+                    .buttonStyle(.plain)
+
+                    PhotosPicker(selection: $selectedItem, matching: .images) {
+                        SourceActionTile(title: photoData == nil ? "ライブラリから選択" : "写真を変更", systemImage: "photo.on.rectangle")
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .frame(height: 226)
-            .clipped()
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.meijiBlue.opacity(0.42), lineWidth: 1)
-            )
         }
-        .padding(18)
-        .taishoPanel(tint: Color.meijiBlue)
+    }
+}
+
+struct RetroPhotoFrame: View {
+    let image: Image
+
+    var body: some View {
+        image
+            .resizable()
+            .scaledToFill()
+            .saturation(0.68)
+            .contrast(1.08)
+            .colorMultiply(Color(hex: 0xF1D7B6))
+            .overlay(
+                LinearGradient(
+                    colors: [
+                        Color(hex: 0x6E2F2D).opacity(0.10),
+                        .clear,
+                        Color(hex: 0x24394B).opacity(0.12)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(RetroFilmGrain().opacity(0.20))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.retroPaper.opacity(0.78), lineWidth: 3))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.retroGold.opacity(0.42), lineWidth: 0.8).padding(3))
+            .clipped()
+    }
+}
+
+struct RetroFilmGrain: View {
+    var body: some View {
+        Canvas { context, size in
+            for index in 0..<130 {
+                let x = CGFloat((index * 37) % 100) / 100 * size.width
+                let y = CGFloat((index * 61) % 100) / 100 * size.height
+                let alpha = Double((index % 7) + 2) / 100
+                let rect = CGRect(x: x, y: y, width: CGFloat((index % 3) + 1), height: CGFloat((index % 3) + 1))
+                context.fill(Path(ellipseIn: rect), with: .color(Color.primaryText.opacity(alpha)))
+            }
+        }
     }
 }
 

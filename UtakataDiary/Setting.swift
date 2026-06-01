@@ -99,6 +99,8 @@ struct Setting: View {
                             Text("ユーザー設定")
                                 .foregroundStyle(Color.settingInk)
                         }
+                    } header: {
+                        SettingListHeader("ユーザー")
                     }
                     .utakataGroupedRows()
 
@@ -131,6 +133,8 @@ struct Setting: View {
                             Text("表示とデザイン")
                                 .foregroundStyle(Color.settingInk)
                         }
+                    } header: {
+                        SettingListHeader("通知と表示")
                     }
                     .utakataGroupedRows()
 
@@ -141,6 +145,8 @@ struct Setting: View {
                             Text("データ管理")
                                 .foregroundStyle(Color.settingInk)
                         }
+                    } header: {
+                        SettingListHeader("データ")
                     }
                     .utakataGroupedRows()
 
@@ -157,6 +163,8 @@ struct Setting: View {
                             Text("プライバシーポリシー")
                                 .foregroundStyle(Color.settingInk)
                         }
+                    } header: {
+                        SettingListHeader("その他")
                     }
                     .utakataGroupedRows()
                 }
@@ -166,7 +174,20 @@ struct Setting: View {
                 .padding(.bottom, 80)
             }
             .navigationTitle("設定")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.meijiRed)
+                        Text("設定")
+                            .font(UtakataFontStyle.retroMincho(size: 24, weight: .semibold))
+                            .foregroundStyle(Color.settingInk)
+                    }
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
         }
     }
 
@@ -417,7 +438,7 @@ struct DisplayDesignSettingsScreen: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 10, trailing: 20))
 
-                Section("書体") {
+                Section {
                     ForEach([UtakataFontStyle.mincho, .gothic, .handwritten]) { style in
                         Button {
                             fontStyleRaw = style.rawValue
@@ -434,10 +455,12 @@ struct DisplayDesignSettingsScreen: View {
                         }
                         .buttonStyle(.plain)
                     }
+                } header: {
+                    SettingListHeader("書体")
                 }
                 .utakataGroupedRows()
 
-                Section("文字サイズ") {
+                Section {
                     HStack(alignment: .center, spacing: 14) {
                         Text("A")
                             .font(.footnote)
@@ -449,6 +472,8 @@ struct DisplayDesignSettingsScreen: View {
                             .foregroundStyle(Color.settingInk)
                     }
                     .padding(.vertical, 8)
+                } header: {
+                    SettingListHeader("文字サイズ")
                 }
                 .utakataGroupedRows()
             }
@@ -519,19 +544,55 @@ struct StandardSettingsBackground<Content: View>: View {
     }
 }
 
+struct SettingListHeader: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text)
+            .font(UtakataFontStyle.rounded(size: 12, weight: .semibold))
+            .foregroundStyle(Color.meijiRed.opacity(0.78))
+            .textCase(nil)
+            .padding(.leading, 2)
+            .padding(.bottom, 3)
+    }
+}
+
 struct SettingGroupedRowBackground: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color.settingPaper)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.settingLine, lineWidth: 0.8)
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(hex: 0xFFF9F2).opacity(0.94),
+                    Color(hex: 0xF8E7D6).opacity(0.88),
+                    Color(hex: 0xF3E5CB).opacity(0.84)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .stroke(Color.settingGold.opacity(0.18), lineWidth: 0.6)
-                    .padding(3)
-            )
+
+            WashiPattern()
+                .opacity(0.10)
+
+            TaishoCheckPattern(color: Color.meijiRed.opacity(0.018), tile: 24)
+
+            RetroCornerOrnaments(color: Color.meijiRed.opacity(0.16))
+                .padding(9)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.settingLine, lineWidth: 0.85)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.settingGold.opacity(0.28), lineWidth: 0.7)
+                .padding(4)
+        )
+        .shadow(color: Color.meijiRed.opacity(0.08), radius: 10, x: 0, y: 5)
     }
 }
 

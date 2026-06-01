@@ -43,13 +43,18 @@ enum CardMood: CaseIterable, Hashable {
 enum AppTab: String, CaseIterable {
     case today = "日記"
     case memory = "メモリー"
-    case setting = "設定"
 
     var systemImage: String {
         switch self {
-        case .today: return "rectangle.portrait.on.rectangle.portrait"
-        case .memory: return "calendar"
-        case .setting: return "slider.horizontal.3"
+        case .today: return "house"
+        case .memory: return "books.vertical"
+        }
+    }
+
+    var tabTitle: String {
+        switch self {
+        case .today: return "ホーム"
+        case .memory: return "ログ"
         }
     }
 }
@@ -163,6 +168,7 @@ struct MainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("lastDiaryCreatedAt") private var lastDiaryCreatedAt = 0.0
     @State private var showingMorningOmikuji = false
+    @State private var showingSettings = false
     @State private var didOfferOmikujiThisActivation = false
 
     var body: some View {
@@ -172,16 +178,18 @@ struct MainTabView: View {
             Group {
                 switch selectedTab {
                 case .today:
-                    TodayView(savedCards: $savedCards) { date in
+                    TodayView(savedCards: $savedCards, onOpenSettings: openSettings) { date in
                         lastDiaryCreatedAt = date.timeIntervalSince1970
                     }
                 case .memory:
-                    MemoryView(cards: savedCards)
-                case .setting:
-                    Setting()
+                    MemoryView(
+                        cards: savedCards,
+                        onOpenSettings: openSettings,
+                        onCreateDiary: addDiaryCard
+                    )
                 }
             }
-            .safeAreaPadding(.bottom, 128)
+            .safeAreaPadding(.bottom, 136)
 
             CustomTabBar(selectedTab: $selectedTab)
         }
@@ -198,12 +206,28 @@ struct MainTabView: View {
                 showingMorningOmikuji = false
             }
         }
+        .sheet(isPresented: $showingSettings) {
+            Setting()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private func updateMorningOmikujiPresentation() {
         guard !didOfferOmikujiThisActivation, !showingMorningOmikuji else { return }
         didOfferOmikujiThisActivation = true
         showingMorningOmikuji = true
+    }
+
+    private func openSettings() {
+        showingSettings = true
+    }
+
+    private func addDiaryCard(_ card: DiaryCard) {
+        if !savedCards.contains(where: { Calendar.current.isDate($0.date, inSameDayAs: card.date) }) {
+            savedCards.insert(card, at: 0)
+        }
+        lastDiaryCreatedAt = card.date.timeIntervalSince1970
     }
 }
 
@@ -892,6 +916,52 @@ struct HeaderView: View {
     }
 }
 
+struct ScreenHeaderWithSettings: View {
+    let title: String
+    let subtitle: String
+    let onOpenSettings: () -> Void
+
+    var body: some View {
+        ZStack {
+            HeaderView(title: title, subtitle: subtitle)
+
+            HStack {
+                Spacer()
+                SettingsShortcutButton(action: onOpenSettings)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct SettingsShortcutButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(Color(hex: 0xFFF9F2).opacity(0.88))
+                    .frame(width: 42, height: 42)
+                    .overlay(Circle().stroke(Color.meijiRed.opacity(0.28), lineWidth: 0.9))
+                    .overlay(Circle().stroke(Color.retroGold.opacity(0.34), lineWidth: 0.7).padding(4))
+                    .shadow(color: Color.meijiRed.opacity(0.10), radius: 10, x: 0, y: 5)
+
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.meijiRed)
+
+                PlumBlossom()
+                    .fill(Color.retroGold.opacity(0.78))
+                    .frame(width: 10, height: 10)
+                    .offset(x: 13, y: -13)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("設定を開く")
+    }
+}
+
 struct CalendarDayCell: View {
     let day: Int
     let isSaved: Bool
@@ -985,51 +1055,115 @@ struct CustomTabBar: View {
     @Binding var selectedTab: AppTab
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 Button {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                    withAnimation(.easeInOut(duration: 0.18)) {
                         selectedTab = tab
                     }
                 } label: {
-                    VStack(spacing: 5) {
+                    HStack(spacing: 8) {
                         Image(systemName: tab.systemImage)
-                            .font(.system(size: 18, weight: .semibold))
-                        Text(tab.rawValue)
-                            .font(.caption2.weight(.semibold))
+                            .font(.system(size: 17, weight: .medium))
+                            .symbolRenderingMode(.hierarchical)
+                        Text(tab.tabTitle)
+                            .font(UtakataFontStyle.rounded(size: 13, weight: .semibold))
                     }
-                    .foregroundStyle(selectedTab == tab ? Color.white : Color.secondaryText)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .foregroundStyle(selectedTab == tab ? Color.retroPaper : Color.primaryText.opacity(0.64))
+                    .frame(width: 126)
+                    .padding(.vertical, 13)
                     .background(
-                        selectedTab == tab ? Color.utakataAccent : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        selectedTab == tab
+                        ? LinearGradient(
+                            colors: [Color.meijiRed, Color(hex: 0xC66F7A)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        : LinearGradient(
+                            colors: [.clear, .clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: Capsule(style: .continuous)
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(selectedTab == tab ? Color.retroGold.opacity(0.58) : Color.clear, lineWidth: 0.8)
                     )
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(8)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 8)
         .background {
             ZStack {
-                Color.retroPaper.opacity(0.94)
+                Color(hex: 0xFFF9F2).opacity(0.94)
                 WashiPattern()
-                    .opacity(0.18)
+                    .opacity(0.14)
+                LinearGradient(
+                    colors: [Color.white.opacity(0.42), Color.retroPaper.opacity(0.38)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(Capsule(style: .continuous))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.primaryText.opacity(0.45), lineWidth: 1.1)
+            Capsule(style: .continuous)
+                .stroke(Color.retroGold.opacity(0.42), lineWidth: 1.0)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.meijiRed.opacity(0.28), lineWidth: 0.8)
+            Capsule(style: .continuous)
+                .stroke(Color.meijiRed.opacity(0.16), lineWidth: 0.8)
                 .padding(5)
         )
-        .shadow(color: .black.opacity(0.1), radius: 18, x: 0, y: 8)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 12)
+        .shadow(color: .black.opacity(0.12), radius: 22, x: 0, y: 10)
+        .shadow(color: Color.meijiRed.opacity(0.08), radius: 12, x: 0, y: 5)
+        .padding(.bottom, 16)
+    }
+}
+
+struct FloatingDiaryActionButton: View {
+    let action: () -> Void
+    @GestureState private var isPressed = false
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: 0xFFF9F2), Color.retroPaper],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 64, height: 64)
+                    .overlay(Circle().stroke(Color.meijiRed.opacity(0.34), lineWidth: 1.0))
+                    .overlay(Circle().stroke(Color.retroGold.opacity(0.46), lineWidth: 0.8).padding(5))
+
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(Color.meijiRed)
+
+                PlumBlossom()
+                    .fill(Color.retroGold.opacity(0.82))
+                    .frame(width: 11, height: 11)
+                    .offset(x: 18, y: -18)
+            }
+            .scaleEffect(isPressed ? 0.92 : 1)
+            .shadow(color: Color.meijiRed.opacity(isPressed ? 0.10 : 0.22), radius: isPressed ? 8 : 16, x: 0, y: isPressed ? 4 : 9)
+            .animation(.spring(response: 0.22, dampingFraction: 0.68), value: isPressed)
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .updating($isPressed) { _, state, _ in
+                    state = true
+                }
+        )
+        .accessibilityLabel("日記を作成")
     }
 }
 

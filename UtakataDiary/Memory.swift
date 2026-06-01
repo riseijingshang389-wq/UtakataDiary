@@ -2,8 +2,11 @@ import SwiftUI
 
 struct MemoryView: View {
     let cards: [DiaryCard]
+    let onOpenSettings: () -> Void
+    let onCreateDiary: (DiaryCard) -> Void
     @State private var selectedCard: DiaryCard?
     @State private var isCardFlipped = false
+    @State private var showingComposer = false
     @State private var visibleMonth = Date.now
     @Namespace private var cardNamespace
 
@@ -22,15 +25,16 @@ struct MemoryView: View {
         ZStack {
             AppBackground()
             OmikujiPreDrawFantasyLayer()
-                .opacity(0.68)
+                .opacity(0.52)
                 .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("名前札棚 〜記憶のかるた〜")
-                        .font(UtakataFontStyle.retroMincho(size: 25, weight: .semibold))
-                        .foregroundStyle(Color.primaryText)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    ScreenHeaderWithSettings(
+                        title: "メモリー",
+                        subtitle: "記憶のかるた",
+                        onOpenSettings: onOpenSettings
+                    )
                         .padding(.top, 4)
 
                     MemoryMonthSwitcher(month: visibleMonth) {
@@ -47,8 +51,15 @@ struct MemoryView: View {
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 20)
-                .padding(.bottom, 150)
+                .padding(.bottom, 196)
             }
+
+            FloatingDiaryActionButton {
+                showingComposer = true
+            }
+            .padding(.trailing, 24)
+            .padding(.bottom, 148)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
 
             if let selectedCard {
                 MemoryCardOverlay(
@@ -59,6 +70,13 @@ struct MemoryView: View {
                 )
                 .zIndex(20)
             }
+        }
+        .sheet(isPresented: $showingComposer) {
+            DiaryComposerView { card in
+                onCreateDiary(card)
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 
