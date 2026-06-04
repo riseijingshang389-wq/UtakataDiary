@@ -22,10 +22,20 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.lifestyle</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>再生中の音楽の雰囲気を短歌の情景に反映するために使います。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>日記カードに使う写真を撮影するためにカメラを使います。</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>その日の天気を短歌の情景にそっと反映するために位置情報を使います。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>写真の日時や色の気配から、今日の上の句を生成するために使います。</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>ZenMaruGothic-Regular.ttf</string>
+		<string>Yomogi-Regular.ttf</string>
+		<string>SawarabiMincho-Regular.ttf</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -34,16 +44,13 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 	<key>UISupportedInterfaceOrientations~iphone</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UIAppFonts</key>
-	<array>
-		<string>ZenMaruGothic-Regular.ttf</string>
-		<string>Yomogi-Regular.ttf</string>
-		<string>SawarabiMincho-Regular.ttf</string>
 	</array>
 </dict>
 </plist>

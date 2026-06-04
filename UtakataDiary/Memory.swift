@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MemoryView: View {
     let cards: [DiaryCard]
+    var showsCreateButton = true
     let onOpenSettings: () -> Void
     let onCreateDiary: (DiaryCard) -> Void
     @State private var selectedCard: DiaryCard?
@@ -54,12 +55,14 @@ struct MemoryView: View {
                 .padding(.bottom, 140)
             }
 
-            FloatingDiaryActionButton {
-                showingComposer = true
+            if showsCreateButton {
+                FloatingDiaryActionButton {
+                    showingComposer = true
+                }
+                .padding(.trailing, 24)
+                .padding(.bottom, 88)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
-            .padding(.trailing, 24)
-            .padding(.bottom, 88)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
 
             if let selectedCard {
                 MemoryCardOverlay(
@@ -735,7 +738,7 @@ struct ModernKarutaFront: View {
 
     private var authorName: String {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "わたし" : trimmed
+        return trimmed.isEmpty ? "名無しの詠み人" : trimmed
     }
 
     var body: some View {
@@ -848,7 +851,7 @@ struct KarutaDiaryBack: View {
 
     private var authorName: String {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "わたし" : trimmed
+        return trimmed.isEmpty ? "名無しの詠み人" : trimmed
     }
 
     var body: some View {
@@ -933,7 +936,7 @@ struct MemoryPreviewCard: View {
 
     private var authorName: String {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "わたし" : trimmed
+        return trimmed.isEmpty ? "名無しの詠み人" : trimmed
     }
 
     var body: some View {

@@ -3,18 +3,37 @@ import PhotosUI
 import CoreImage
 import UIKit
 import ImageIO
+import CloudKit
 
-struct DiaryCard: Identifiable, Hashable {
-    let id = UUID()
+struct DiaryCard: Identifiable, Hashable, Codable {
+    let id: UUID
     let date: Date
     let upperPhrase: [String]
     let lowerPhrase: String
     let mood: CardMood
     let placeHint: String
     let photoData: Data?
+
+    init(
+        id: UUID = UUID(),
+        date: Date,
+        upperPhrase: [String],
+        lowerPhrase: String,
+        mood: CardMood,
+        placeHint: String,
+        photoData: Data?
+    ) {
+        self.id = id
+        self.date = date
+        self.upperPhrase = upperPhrase
+        self.lowerPhrase = lowerPhrase
+        self.mood = mood
+        self.placeHint = placeHint
+        self.photoData = photoData
+    }
 }
 
-enum CardMood: CaseIterable, Hashable {
+enum CardMood: String, CaseIterable, Hashable, Codable {
     case dawn, rain, evening, night
 
     var gradient: [Color] {
@@ -54,7 +73,7 @@ enum AppTab: String, CaseIterable {
     var tabTitle: String {
         switch self {
         case .today: return "ホーム"
-        case .memory: return "ログ"
+        case .memory: return "メモリー"
         }
     }
 }
@@ -122,12 +141,13 @@ struct OnboardingView: View {
                         lowerPhrase: "手のひらだけが 先に目覚める",
                         mood: .dawn,
                         compact: false,
-                        photoData: nil
+                        photoData: nil,
+                        heroPreview: true
                     )
-                    .frame(width: 238, height: 382)
-                    .rotationEffect(.degrees(-2))
+                    .frame(width: 252, height: 392)
+                    .rotationEffect(.degrees(-1.2))
                 }
-                .frame(height: 410)
+                .frame(height: 404)
 
                 PermissionCard(
                     title: permissions[permissionStep].0,
@@ -167,16 +187,19 @@ struct MainTabView: View {
     @Binding var savedCards: [DiaryCard]
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("lastDiaryCreatedAt") private var lastDiaryCreatedAt = 0.0
+    @AppStorage("utakataICloudSyncEnabled") private var iCloudSyncEnabled = false
     @State private var showingMorningOmikuji = false
     @State private var showingSettings = false
+    @State private var showingComposer = false
     @State private var didOfferOmikujiThisActivation = false
+    @State private var isCloudSyncing = false
 
     var body: some View {
         ZStack {
             AppBackground()
 
             TabView(selection: $selectedTab) {
-                TodayView(savedCards: $savedCards, onOpenSettings: openSettings) { date in
+                TodayView(savedCards: $savedCards, showsCreateButton: false, onOpenSettings: openSettings) { date in
                     lastDiaryCreatedAt = date.timeIntervalSince1970
                 }
                 .tabItem {
@@ -186,6 +209,7 @@ struct MainTabView: View {
 
                 MemoryView(
                     cards: savedCards,
+                    showsCreateButton: false,
                     onOpenSettings: openSettings,
                     onCreateDiary: addDiaryCard
                 )
@@ -198,13 +222,29 @@ struct MainTabView: View {
             .toolbarBackground(Color(hex: 0xFFF9F2).opacity(0.96), for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
             .toolbarColorScheme(.light, for: .tabBar)
+
+            CentralDiaryCreateTabButton {
+                showingComposer = true
+            }
+            .padding(.bottom, 24)
+            .zIndex(10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
-        .onAppear(perform: updateMorningOmikujiPresentation)
+        .onAppear {
+            updateMorningOmikujiPresentation()
+            syncFromCloudIfNeeded(uploadLocalAfterFetch: false)
+        }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 updateMorningOmikujiPresentation()
+                syncFromCloudIfNeeded(uploadLocalAfterFetch: false)
             } else {
                 didOfferOmikujiThisActivation = false
+            }
+        }
+        .onChange(of: iCloudSyncEnabled) { _, isEnabled in
+            if isEnabled {
+                syncFromCloudIfNeeded(uploadLocalAfterFetch: true)
             }
         }
         .fullScreenCover(isPresented: $showingMorningOmikuji) {
@@ -216,6 +256,14 @@ struct MainTabView: View {
             Setting()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showingComposer) {
+            DiaryComposerView { card in
+                addDiaryCard(card)
+                selectedTab = .today
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -230,10 +278,230 @@ struct MainTabView: View {
     }
 
     private func addDiaryCard(_ card: DiaryCard) {
-        if !savedCards.contains(where: { Calendar.current.isDate($0.date, inSameDayAs: card.date) }) {
-            savedCards.insert(card, at: 0)
-        }
+        savedCards.insert(card, at: 0)
         lastDiaryCreatedAt = card.date.timeIntervalSince1970
+        saveToCloudIfNeeded(card)
+    }
+
+    private func saveToCloudIfNeeded(_ card: DiaryCard) {
+        guard iCloudSyncEnabled else { return }
+
+        Task {
+            do {
+                try await DiaryCloudSyncManager.shared.save(card: card)
+            } catch {
+                print("iCloud sync save failed:", error.localizedDescription)
+            }
+        }
+    }
+
+    private func syncFromCloudIfNeeded(uploadLocalAfterFetch: Bool) {
+        guard iCloudSyncEnabled, !isCloudSyncing else { return }
+        isCloudSyncing = true
+
+        Task {
+            do {
+                let cloudCards = try await DiaryCloudSyncManager.shared.fetchCards()
+                await MainActor.run {
+                    mergeCloudCards(cloudCards)
+                }
+
+                if uploadLocalAfterFetch {
+                    let cardsToUpload = await MainActor.run { savedCards }
+                    try await DiaryCloudSyncManager.shared.save(cards: cardsToUpload)
+                }
+            } catch {
+                print("iCloud sync fetch failed:", error.localizedDescription)
+            }
+
+            await MainActor.run {
+                isCloudSyncing = false
+            }
+        }
+    }
+
+    private func mergeCloudCards(_ cloudCards: [DiaryCard]) {
+        guard !cloudCards.isEmpty else { return }
+
+        var cardsByID = Dictionary(uniqueKeysWithValues: savedCards.map { ($0.id, $0) })
+        for card in cloudCards {
+            cardsByID[card.id] = card
+        }
+
+        savedCards = cardsByID.values.sorted { $0.date > $1.date }
+    }
+}
+
+struct CentralDiaryCreateTabButton: View {
+    let action: () -> Void
+    @GestureState private var isPressed = false
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.meijiRed, Color(hex: 0xA64A57)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 60, height: 60)
+                    .overlay(Circle().stroke(Color(hex: 0xFFF9F2).opacity(0.92), lineWidth: 3))
+                    .overlay(Circle().stroke(Color.retroGold.opacity(0.62), lineWidth: 0.9).padding(6))
+
+                Image(systemName: "plus")
+                    .font(.system(size: 25, weight: .semibold))
+                    .foregroundStyle(Color(hex: 0xFFF9F2))
+
+                PlumBlossom()
+                    .fill(Color.retroGold.opacity(0.82))
+                    .frame(width: 10, height: 10)
+                    .offset(x: 18, y: -18)
+            }
+            .scaleEffect(isPressed ? 0.92 : 1)
+            .shadow(color: Color.meijiRed.opacity(isPressed ? 0.10 : 0.20), radius: isPressed ? 7 : 14, x: 0, y: isPressed ? 4 : 8)
+            .shadow(color: .black.opacity(isPressed ? 0.05 : 0.09), radius: isPressed ? 5 : 10, x: 0, y: isPressed ? 3 : 6)
+            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isPressed)
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .updating($isPressed) { _, state, _ in
+                    state = true
+                }
+        )
+        .accessibilityLabel("日記を作成")
+    }
+}
+
+final class DiaryCloudSyncManager {
+    static let shared = DiaryCloudSyncManager()
+
+    private let database = CKContainer.default().privateCloudDatabase
+    private let recordType = "DiaryCard"
+
+    private enum Field {
+        static let date = "date"
+        static let upperPhraseData = "upperPhraseData"
+        static let lowerPhrase = "lowerPhrase"
+        static let mood = "mood"
+        static let placeHint = "placeHint"
+        static let photoAsset = "photoAsset"
+        static let updatedAt = "updatedAt"
+    }
+
+    private init() {}
+
+    func fetchCards() async throws -> [DiaryCard] {
+        let status = try await CKContainer.default().accountStatus()
+        guard status == .available else {
+            throw DiaryCloudSyncError.iCloudUnavailable
+        }
+
+        let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: Field.date, ascending: false)]
+
+        return try await withCheckedThrowingContinuation { continuation in
+            var fetchedRecords: [CKRecord] = []
+            let operation = CKQueryOperation(query: query)
+            operation.resultsLimit = 200
+            operation.recordMatchedBlock = { _, result in
+                if case .success(let record) = result {
+                    fetchedRecords.append(record)
+                }
+            }
+            operation.queryResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume(returning: fetchedRecords.compactMap(Self.card(from:)))
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+
+            database.add(operation)
+        }
+    }
+
+    func save(cards: [DiaryCard]) async throws {
+        for card in cards {
+            try await save(card: card)
+        }
+    }
+
+    func save(card: DiaryCard) async throws {
+        let status = try await CKContainer.default().accountStatus()
+        guard status == .available else {
+            throw DiaryCloudSyncError.iCloudUnavailable
+        }
+
+        let record = try Self.record(from: card, recordType: recordType)
+        _ = try await database.save(record)
+    }
+
+    private static func record(from card: DiaryCard, recordType: String) throws -> CKRecord {
+        let recordID = CKRecord.ID(recordName: card.id.uuidString)
+        let record = CKRecord(recordType: recordType, recordID: recordID)
+        record[Field.date] = card.date as CKRecordValue
+        record[Field.upperPhraseData] = try JSONEncoder().encode(card.upperPhrase) as CKRecordValue
+        record[Field.lowerPhrase] = card.lowerPhrase as CKRecordValue
+        record[Field.mood] = card.mood.rawValue as CKRecordValue
+        record[Field.placeHint] = card.placeHint as CKRecordValue
+        record[Field.updatedAt] = Date() as CKRecordValue
+
+        if let photoData = card.photoData {
+            let fileURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("utakata-\(card.id.uuidString).jpg")
+            try photoData.write(to: fileURL, options: [.atomic])
+            record[Field.photoAsset] = CKAsset(fileURL: fileURL)
+        }
+
+        return record
+    }
+
+    private static func card(from record: CKRecord) -> DiaryCard? {
+        guard
+            let id = UUID(uuidString: record.recordID.recordName),
+            let date = record[Field.date] as? Date,
+            let upperPhraseData = record[Field.upperPhraseData] as? Data,
+            let upperPhrase = try? JSONDecoder().decode([String].self, from: upperPhraseData),
+            let lowerPhrase = record[Field.lowerPhrase] as? String,
+            let moodRaw = record[Field.mood] as? String,
+            let mood = CardMood(rawValue: moodRaw),
+            let placeHint = record[Field.placeHint] as? String
+        else {
+            return nil
+        }
+
+        let photoData: Data?
+        if
+            let asset = record[Field.photoAsset] as? CKAsset,
+            let fileURL = asset.fileURL
+        {
+            photoData = try? Data(contentsOf: fileURL)
+        } else {
+            photoData = nil
+        }
+
+        return DiaryCard(
+            id: id,
+            date: date,
+            upperPhrase: upperPhrase,
+            lowerPhrase: lowerPhrase,
+            mood: mood,
+            placeHint: placeHint,
+            photoData: photoData
+        )
+    }
+}
+
+enum DiaryCloudSyncError: LocalizedError {
+    case iCloudUnavailable
+
+    var errorDescription: String? {
+        "iCloudにサインインしていないか、CloudKitを利用できません。"
     }
 }
 
@@ -495,6 +763,56 @@ enum EmoFilter {
 }
 
 enum PhotoPhraseGenerator {
+    static func description(from data: Data?) -> String? {
+        guard
+            let data,
+            let image = UIImage(data: data)
+        else { return nil }
+
+        let metrics = image.colorMetrics()
+        var tags: [String] = []
+
+        if metrics.brightness < 0.36 {
+            tags.append("暗めの写真")
+            tags.append("夜の気配")
+        } else if metrics.brightness > 0.66 {
+            tags.append("明るい写真")
+            tags.append("淡い光")
+        } else {
+            tags.append("やわらかな明るさ")
+        }
+
+        if metrics.warmth > 0.07 {
+            tags.append("琥珀色")
+            tags.append("夕方のような温度")
+        } else if metrics.blue > metrics.red + 0.06 && metrics.blue > metrics.green + 0.02 {
+            tags.append("青みのある空気")
+            tags.append("雨上がりのような静けさ")
+        } else if metrics.green > metrics.red + 0.04 && metrics.green > metrics.blue + 0.02 {
+            tags.append("緑の気配")
+            tags.append("風を感じる色")
+        }
+
+        if metrics.saturation > 0.2 {
+            tags.append("印象の強い色")
+        } else {
+            tags.append("淡い色調")
+        }
+
+        if let date = capturedDate(from: data) {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "ja_JP")
+            formatter.dateFormat = "H時頃に撮られた写真"
+            tags.append(formatter.string(from: date))
+        }
+
+        if hasGPS(from: data) {
+            tags.append("位置情報あり")
+        }
+
+        return Array(Set(tags)).sorted().joined(separator: "、")
+    }
+
     static func upperPhrase(from data: Data) -> [String] {
         guard let image = UIImage(data: data) else {
             return ["光ひとつ", "今日の奥から", "立ちのぼる"]
@@ -630,6 +948,7 @@ struct PoemCardView: View {
     let mood: CardMood
     let compact: Bool
     let photoData: Data?
+    var heroPreview = false
     @AppStorage("utakataFontStyle") private var fontStyleRaw = UtakataFontStyle.mincho.rawValue
 
     private var emoFilter: EmoFilter? {
@@ -655,7 +974,9 @@ struct PoemCardView: View {
             let edge = compact ? proxy.size.width * 0.045 : proxy.size.width * 0.055
             let bottom = compact ? proxy.size.height * 0.15 : proxy.size.height * 0.17
             let photoHeight = proxy.size.height - bottom - edge * 1.4
-            let poemWidth = min(proxy.size.width * (compact ? 0.33 : 0.31), compact ? 82 : 104)
+            let textInset = heroPreview ? 16.0 : (compact ? 9.0 : 14.0)
+            let poemPanelWidth = min(proxy.size.width * (heroPreview ? 0.45 : (compact ? 0.42 : 0.38)), heroPreview ? 118 : (compact ? 96 : 126))
+            let poemPanelHeight = max(56, photoHeight - textInset * 2)
 
             ZStack {
                 RoundedRectangle(cornerRadius: compact ? 10 : 14, style: .continuous)
@@ -701,13 +1022,22 @@ struct PoemCardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: compact ? 5 : 7, style: .continuous))
                         .allowsHitTesting(false)
 
-                        HStack(spacing: 0) {
-                            LinearGradient(
-                                colors: [.black.opacity(0.0), .black.opacity(compact ? 0.08 : 0.13)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                            .frame(width: poemWidth * 0.42)
+                        ZStack {
+                            RoundedRectangle(cornerRadius: compact ? 8 : 11, style: .continuous)
+                                .fill(Color(hex: 0xFFF8EA).opacity(compact ? 0.74 : 0.68))
+                                .background(.ultraThinMaterial.opacity(compact ? 0.18 : 0.14), in: RoundedRectangle(cornerRadius: compact ? 8 : 11, style: .continuous))
+                                .overlay(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(hex: 0xFFFDF5).opacity(0.42),
+                                            Color(hex: 0xF4E4CB).opacity(0.20),
+                                            mood.accent.opacity(0.08)
+                                        ],
+                                        startPoint: .topTrailing,
+                                        endPoint: .bottomLeading
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: compact ? 8 : 11, style: .continuous))
+                                )
 
                             VerticalTankaView(
                                 upperPhrase: upperPhrase,
@@ -715,17 +1045,22 @@ struct PoemCardView: View {
                                 accent: mood.accent,
                                 compact: compact
                             )
-                            .frame(width: poemWidth)
-                            .frame(maxHeight: photoHeight - (compact ? 18 : 26), alignment: .top)
-                            .padding(.vertical, compact ? 7 : 10)
-                            .background(Color(hex: 0xFFF8EA).opacity(compact ? 0.74 : 0.66), in: RoundedRectangle(cornerRadius: compact ? 6 : 8, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: compact ? 6 : 8, style: .continuous)
-                                    .stroke(Color.retroGold.opacity(0.38), lineWidth: 0.8)
-                            )
+                            .padding(.horizontal, compact ? 3 : 5)
+                            .padding(.vertical, compact ? 5 : 7)
                         }
-                        .padding(.top, compact ? 7 : 10)
-                        .padding(.trailing, compact ? 7 : 10)
+                        .frame(width: poemPanelWidth, height: poemPanelHeight, alignment: .top)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: compact ? 8 : 11, style: .continuous)
+                                .stroke(Color.retroGold.opacity(0.40), lineWidth: 0.8)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: compact ? 5 : 8, style: .continuous)
+                                .stroke(Color(hex: 0xFFFDF5).opacity(0.34), lineWidth: 0.6)
+                                .padding(3)
+                        )
+                        .padding(.top, textInset)
+                        .padding(.trailing, textInset)
+                        .clipped()
                     }
 
                     HStack(alignment: .center, spacing: 10) {
@@ -816,19 +1151,30 @@ struct VerticalTankaView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: compact ? 4 : 7) {
-            ForEach(Array(lines.enumerated()).reversed(), id: \.offset) { index, line in
-                VerticalPoemLine(
-                    text: line,
-                    isLowerPhrase: index >= 3,
-                    accent: accent,
-                    compact: compact,
-                    isOpeningLine: index == 0
-                )
+        GeometryReader { proxy in
+            let normalizedLines = lines.map { $0.normalizedVerticalPoemText }
+            let maxCount = max(normalizedLines.map(\.count).max() ?? 1, 1)
+            let verticalPadding = compact ? 6.0 : 8.0
+            let characterSpacing = compact ? 1.0 : 1.5
+            let availableHeight = max(34, proxy.size.height - verticalPadding * 2)
+            let fittedFontSize = min(
+                compact ? 12.0 : 15.0,
+                max(compact ? 8.0 : 10.0, (availableHeight - CGFloat(maxCount - 1) * characterSpacing) / CGFloat(maxCount))
+            )
+
+            HStack(alignment: .top, spacing: compact ? 3 : 5) {
+                ForEach(Array(lines.enumerated()).reversed(), id: \.offset) { index, line in
+                    VerticalPoemLine(
+                        text: line,
+                        isLowerPhrase: index >= 3,
+                        accent: accent,
+                        compact: compact,
+                        fontSize: fittedFontSize
+                    )
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.horizontal, compact ? 4 : 8)
     }
 }
 
@@ -837,44 +1183,47 @@ struct VerticalPoemLine: View {
     let isLowerPhrase: Bool
     let accent: Color
     let compact: Bool
-    var isOpeningLine: Bool = false
+    var fontSize: CGFloat? = nil
     @AppStorage("utakataFontStyle") private var fontStyleRaw = UtakataFontStyle.mincho.rawValue
 
     var body: some View {
-        let characters = Array(displayText.enumerated())
+        let characters = Array(text.normalizedVerticalPoemText.enumerated())
 
-        VStack(spacing: compact ? 1.2 : 2.2) {
+        VStack(spacing: compact ? 1.0 : 1.5) {
             ForEach(characters, id: \.offset) { _, character in
                 Text(String(character))
-                    .font(currentFont.font(size: lineFontSize, weight: isOpeningLine ? .semibold : .medium))
+                    .font(currentFont.font(size: effectiveFontSize, weight: .medium))
                     .foregroundStyle(isLowerPhrase ? Color.primaryText.opacity(0.86) : Color.primaryText)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.45)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.5)
+                    .allowsTightening(true)
             }
         }
-        .frame(width: compact ? 16 : 21, alignment: .top)
-        .padding(.vertical, compact ? 5 : 8)
+        .frame(width: compact ? 15 : 19, alignment: .top)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(.vertical, compact ? 3 : 4)
         .background(
             isLowerPhrase ? accent.opacity(0.07) : Color.clear,
             in: Capsule()
         )
-    }
-
-    private var lineFontSize: CGFloat {
-        if compact {
-            return isOpeningLine ? 13 : 12
-        }
-        return isOpeningLine ? 17 : 15
-    }
-
-    private var displayText: String {
-        let limit = compact ? 8 : 10
-        guard text.count > limit else { return text }
-        return String(text.prefix(max(1, limit - 1))) + "…"
+        .clipped()
     }
 
     private var currentFont: UtakataFontStyle {
         UtakataFontStyle(rawValue: fontStyleRaw) ?? .mincho
+    }
+
+    private var effectiveFontSize: CGFloat {
+        fontSize ?? (compact ? 12 : 15)
+    }
+}
+
+private extension String {
+    var normalizedVerticalPoemText: String {
+        replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "　", with: "")
+            .replacingOccurrences(of: "\n", with: "")
     }
 }
 

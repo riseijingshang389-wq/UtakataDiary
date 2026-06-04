@@ -1,9 +1,17 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import CoreLocation
+#if canImport(WeatherKit)
+import WeatherKit
+#endif
+#if canImport(MusicKit)
+import MusicKit
+#endif
 
 struct TodayView: View {
     @Binding var savedCards: [DiaryCard]
+    var showsCreateButton = true
     let onOpenSettings: () -> Void
     let onDiaryCreated: (Date) -> Void
     @State private var showingComposer = false
@@ -16,8 +24,8 @@ struct TodayView: View {
         return calendar
     }
 
-    private var selectedCard: DiaryCard? {
-        savedCards.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
+    private var selectedCards: [DiaryCard] {
+        savedCards.filter { calendar.isDate($0.date, inSameDayAs: selectedDate) }
     }
 
     var body: some View {
@@ -44,7 +52,7 @@ struct TodayView: View {
 
                         DiarySelectedDayLog(
                             date: selectedDate,
-                            card: selectedCard
+                            cards: selectedCards
                         ) {
                             showingComposer = true
                         }
@@ -56,18 +64,18 @@ struct TodayView: View {
                     .padding(.bottom, 112)
                 }
 
-                FloatingDiaryActionButton {
-                    showingComposer = true
+                if showsCreateButton {
+                    FloatingDiaryActionButton {
+                        showingComposer = true
+                    }
+                    .padding(.trailing, 24)
+                    .padding(.bottom, 88)
                 }
-                .padding(.trailing, 24)
-                .padding(.bottom, 88)
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingComposer) {
                 DiaryComposerView { card in
-                    if !savedCards.contains(where: { Calendar.current.isDate($0.date, inSameDayAs: card.date) }) {
-                        savedCards.insert(card, at: 0)
-                    }
+                    savedCards.insert(card, at: 0)
                     selectedDate = card.date
                     visibleMonth = card.date
                     onDiaryCreated(card.date)
@@ -98,7 +106,7 @@ struct DiaryCalendarBoard: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 13) {
             HStack {
                 Button {
                     moveMonth(-1)
@@ -113,7 +121,7 @@ struct DiaryCalendarBoard: View {
                 Spacer()
 
                 Text(monthTitle)
-                    .font(UtakataFontStyle.rounded(size: 26, weight: .semibold))
+                    .font(UtakataFontStyle.rounded(size: 22, weight: .semibold))
                     .foregroundStyle(Color.primaryText)
 
                 Spacer()
@@ -129,10 +137,10 @@ struct DiaryCalendarBoard: View {
                 .buttonStyle(.plain)
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 15) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 9) {
                 ForEach(["月", "火", "水", "木", "金", "土", "日"], id: \.self) { weekday in
                     Text(weekday)
-                        .font(UtakataFontStyle.rounded(size: 16, weight: .semibold))
+                        .font(UtakataFontStyle.rounded(size: 13, weight: .semibold))
                         .foregroundStyle(Color.secondaryText.opacity(0.86))
                         .frame(maxWidth: .infinity)
                 }
@@ -156,9 +164,9 @@ struct DiaryCalendarBoard: View {
                 }
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 18)
-        .padding(.bottom, 22)
+        .padding(.horizontal, 14)
+        .padding(.top, 14)
+        .padding(.bottom, 16)
         .background {
             ZStack {
                 LinearGradient(
@@ -218,13 +226,13 @@ struct DiaryLargeCalendarDayCell: View {
         Button(action: action) {
             VStack(spacing: 5) {
                 Text("\(dayNumber)")
-                    .font(UtakataFontStyle.rounded(size: 20, weight: isSelected ? .semibold : .medium))
+                    .font(UtakataFontStyle.rounded(size: 17, weight: isSelected ? .semibold : .medium))
                     .foregroundStyle(textColor)
                     .monospacedDigit()
 
                 if hasCard {
                     Image(systemName: symbol)
-                        .font(.system(size: 8.5, weight: .bold))
+                        .font(.system(size: 7.5, weight: .bold))
                         .foregroundStyle(isSelected ? Color.retroPaper : Color.meijiRed.opacity(0.82))
                 } else {
                     Circle()
@@ -232,7 +240,7 @@ struct DiaryLargeCalendarDayCell: View {
                         .frame(width: 8, height: 8)
                 }
             }
-            .frame(height: 48)
+            .frame(height: 40)
             .frame(maxWidth: .infinity)
             .background {
                 if isSelected {
@@ -245,7 +253,7 @@ struct DiaryLargeCalendarDayCell: View {
                                 endRadius: 34
                             )
                         )
-                        .frame(width: 48, height: 48)
+                        .frame(width: 40, height: 40)
                 } else if hasCard {
                     Circle()
                         .fill(
@@ -256,7 +264,7 @@ struct DiaryLargeCalendarDayCell: View {
                                 endRadius: 28
                             )
                         )
-                        .frame(width: 38, height: 38)
+                        .frame(width: 32, height: 32)
                 }
             }
         }
@@ -272,8 +280,10 @@ struct DiaryLargeCalendarDayCell: View {
 
 struct DiarySelectedDayLog: View {
     let date: Date
-    let card: DiaryCard?
+    let cards: [DiaryCard]
     let onCreate: () -> Void
+
+    private var firstCard: DiaryCard? { cards.first }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -282,14 +292,14 @@ struct DiarySelectedDayLog: View {
                     Text(date.japaneseMonthDay)
                         .font(UtakataFontStyle.retroMincho(size: 23, weight: .semibold))
                         .foregroundStyle(Color.primaryText)
-                    Text(card == nil ? "投稿がありません" : "この日のうたかた")
+                    Text(cards.isEmpty ? "投稿がありません" : "\(cards.count)枚のうたかた")
                         .font(UtakataFontStyle.rounded(size: 13, weight: .medium))
                         .foregroundStyle(Color.secondaryText)
                 }
 
                 Spacer()
 
-                if card == nil {
+                if cards.isEmpty {
                     Button(action: onCreate) {
                         Image(systemName: "plus")
                             .font(.system(size: 15, weight: .bold))
@@ -301,8 +311,12 @@ struct DiarySelectedDayLog: View {
                 }
             }
 
-            if let card {
-                MemoryPreviewCard(card: card)
+            if !cards.isEmpty {
+                VStack(spacing: 12) {
+                    ForEach(cards) { card in
+                        MemoryPreviewCard(card: card)
+                    }
+                }
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "calendar.badge.plus")
@@ -320,7 +334,7 @@ struct DiarySelectedDayLog: View {
             }
         }
         .padding(18)
-        .taishoPanel(tint: card?.mood.accent ?? Color.meijiRed)
+        .taishoPanel(tint: firstCard?.mood.accent ?? Color.meijiRed)
     }
 }
 
@@ -366,9 +380,7 @@ struct LegacyDiaryHome: View {
             .navigationBarHidden(true)
             .sheet(isPresented: $showingComposer) {
                 DiaryComposerView { card in
-                    if !savedCards.contains(where: { Calendar.current.isDate($0.date, inSameDayAs: card.date) }) {
-                        savedCards.insert(card, at: 0)
-                    }
+                    savedCards.insert(card, at: 0)
                     onDiaryCreated(card.date)
                 }
                 .presentationDetents([.large])
@@ -407,7 +419,7 @@ struct CreateDiaryEntryCard: View {
 
                 VStack(alignment: .leading, spacing: 9) {
                     RetroRibbonLabel(text: "日記を作成", tint: Color.meijiRed)
-                    Text("写真を選ぶ / 撮る → 上の句 → 下の句 → 一枚の札へ")
+                    Text("写真を選択 / 撮る → 上の句 → 下の句 → 一枚の札へ")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Color.secondaryText)
                         .lineSpacing(3)
@@ -686,22 +698,55 @@ struct DiaryComposerView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var photoData: Data?
     @State private var showingCamera = false
+    @State private var showingPhotoLibrary = false
     @State private var mode = DiaryComposerMode.ai
     @State private var factText = ""
     @State private var manualUpperText = ""
     @State private var manualLowerText = ""
     @State private var manualHint: String?
     @State private var selectedTone = DiaryTone.joy
+    @State private var selectedAILowerIndex = 0
+    @State private var aiCustomLowerText = ""
     @State private var selectedLowerFirstIndex = 0
     @State private var selectedLowerSecondIndex = 0
     @State private var isStoring = false
     @State private var sparkleBurst = false
+    @State private var ambientContext = AmbientAIContext()
+    @State private var composerNotice: ComposerNotice?
+
+    private var aiSuggestionRequest: AISuggestionRequest {
+        AISuggestionRequest(
+            photoDescription: PhotoPhraseGenerator.description(from: photoData),
+            factInput: factText,
+            mood: selectedTone,
+            weatherKeyword: ambientContext.weatherKeyword,
+            musicMood: ambientContext.musicMood
+        )
+    }
+
+    private var aiGenerationState: AIComposerGenerationState {
+        AIComposerSuggestion.generate(request: aiSuggestionRequest)
+    }
+
+    private var aiLowerSuggestions: [String] {
+        switch aiGenerationState {
+        case .success(let suggestion):
+            return suggestion.lowerOptions
+        case .failure:
+            return AIComposerSuggestion.fallback.lowerOptions
+        }
+    }
+
+    private var selectedAILowerPhrase: String {
+        if selectedAILowerIndex == aiLowerSuggestions.count {
+            return aiCustomLowerText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return aiLowerSuggestions[safe: selectedAILowerIndex] ?? aiLowerSuggestions[0]
+    }
 
     private var currentLowerPhrase: String {
-        let first = selectedTone.lowerFirstOptions[safe: selectedLowerFirstIndex] ?? selectedTone.lowerFirstOptions[0]
-        let secondOptions = selectedTone.lowerSecondOptions(for: selectedLowerFirstIndex)
-        let second = secondOptions[safe: selectedLowerSecondIndex] ?? secondOptions[0]
-        return "\(first) \(second)"
+        selectedAILowerPhrase
     }
 
     private var effectiveLowerPhrase: String {
@@ -714,7 +759,12 @@ struct DiaryComposerView: View {
     }
 
     private var generatedUpperPhrase: [String] {
-        DiaryFactPhraseGenerator.upperPhrase(from: factText, tone: selectedTone)
+        switch aiGenerationState {
+        case .success(let suggestion):
+            return suggestion.upperPhrase
+        case .failure:
+            return AIComposerSuggestion.fallback.upperPhrase
+        }
     }
 
     private var effectiveUpperPhrase: [String] {
@@ -730,6 +780,7 @@ struct DiaryComposerView: View {
         switch mode {
         case .ai:
             return !factText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !effectiveLowerPhrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .manual:
             return !manualUpperText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 && !manualLowerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -752,13 +803,32 @@ struct DiaryComposerView: View {
 
                         DiaryPhotoMenuButton(
                             photoData: photoData,
-                            selectedItem: $selectedPhotoItem,
-                            onCameraTap: { showingCamera = true }
+                            onCameraTap: { showingCamera = true },
+                            onLibraryTap: { showingPhotoLibrary = true }
                         )
                     }
 
                     LetterPaperDivider()
                         .padding(.vertical, 2)
+
+                    if let composerNotice {
+                        ComposerNoticeView(notice: composerNotice) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.composerNotice = nil
+                            }
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    if case .failure = aiGenerationState, mode == .ai, !factText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        ComposerNoticeView(
+                            notice: ComposerNotice(
+                                title: "今は短歌が詠めません",
+                                message: "通信や解析の調子が悪い時は、少し時間をおいてもう一度試してください。入力した内容はそのまま残ります。",
+                                symbol: "sparkles"
+                            )
+                        )
+                    }
 
                     if mode == .ai {
                         FactInputStep(factText: $factText)
@@ -780,10 +850,12 @@ struct DiaryComposerView: View {
                     )
 
                     if mode == .ai {
-                        LowerPhraseSlotStep(
+                        AITankaFlowStep(
                             tone: selectedTone,
-                            selectedFirstIndex: $selectedLowerFirstIndex,
-                            selectedSecondIndex: $selectedLowerSecondIndex
+                            upperLines: generatedUpperPhrase,
+                            lowerOptions: aiLowerSuggestions,
+                            selectedLowerIndex: $selectedAILowerIndex,
+                            customLowerText: $aiCustomLowerText
                         )
                     } else {
                         ManualTextAreaStep(
@@ -802,6 +874,7 @@ struct DiaryComposerView: View {
                             lowerPhrase: effectiveLowerPhrase,
                             mood: selectedTone.mood,
                             photoData: photoData,
+                            weatherEffect: ambientContext.weatherEffect,
                             isStoring: isStoring
                         )
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -842,20 +915,58 @@ struct DiaryComposerView: View {
         }
         .onChange(of: selectedPhotoItem) { _, newItem in
             Task {
-                guard let data = try? await newItem?.loadTransferable(type: Data.self) else { return }
-                await MainActor.run {
-                    photoData = data
+                do {
+                    guard let data = try await newItem?.loadTransferable(type: Data.self) else { return }
+                    guard let resizedData = UIImage.diaryStorageJPEGData(from: data) else {
+                        await MainActor.run {
+                            showComposerNotice(
+                                title: "写真を読み込めませんでした",
+                                message: "別の写真を選ぶか、少し時間をおいてもう一度試してください。",
+                                symbol: "photo"
+                            )
+                        }
+                        return
+                    }
+
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            photoData = resizedData
+                            composerNotice = nil
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        showComposerNotice(
+                            title: "写真を読み込めませんでした",
+                            message: "写真ライブラリの状態を確認して、もう一度試してください。",
+                            symbol: "photo"
+                        )
+                    }
                 }
             }
         }
         .fullScreenCover(isPresented: $showingCamera) {
             CameraPicker { image in
-                photoData = image.jpegData(compressionQuality: 0.84)
+                photoData = image.diaryStorageJPEGData()
                 showingCamera = false
             } onCancel: {
                 showingCamera = false
             }
             .ignoresSafeArea()
+        }
+        .photosPicker(
+            isPresented: $showingPhotoLibrary,
+            selection: $selectedPhotoItem,
+            matching: .images
+        )
+        .task {
+            ambientContext = await ContextManager.shared.currentContext()
+        }
+    }
+
+    private func showComposerNotice(title: String, message: String, symbol: String) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            composerNotice = ComposerNotice(title: title, message: message, symbol: symbol)
         }
     }
 
@@ -898,6 +1009,57 @@ struct DiaryComposerView: View {
                 : manualUpperText.trimmingCharacters(in: .whitespacesAndNewlines),
             photoData: photoData
         )
+    }
+}
+
+struct ComposerNotice: Equatable {
+    let title: String
+    let message: String
+    let symbol: String
+}
+
+struct ComposerNoticeView: View {
+    let notice: ComposerNotice
+    var onDismiss: (() -> Void)?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: notice.symbol)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Color.meijiRed)
+                .frame(width: 30, height: 30)
+                .background(Color.retroPaper.opacity(0.72), in: Circle())
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(notice.title)
+                    .font(UtakataFontStyle.rounded(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.primaryText)
+
+                Text(notice.message)
+                    .font(UtakataFontStyle.rounded(size: 12, weight: .regular))
+                    .foregroundStyle(Color.secondaryText)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            if let onDismiss {
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color.secondaryText.opacity(0.72))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("メッセージを閉じる")
+            }
+        }
+        .padding(14)
+        .background(Color(hex: 0xFFF9F2).opacity(0.88), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.meijiRed.opacity(0.18), lineWidth: 0.8))
+        .overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.retroGold.opacity(0.24), lineWidth: 0.7).padding(5))
+        .shadow(color: Color.meijiRed.opacity(0.08), radius: 10, x: 0, y: 5)
     }
 }
 
@@ -1060,7 +1222,19 @@ enum DiaryTone: String, CaseIterable, Hashable {
 }
 
 enum DiaryFactPhraseGenerator {
+    static func upperPhrase(request: AISuggestionRequest) -> [String] {
+        upperPhrase(
+            from: request.factInput,
+            tone: request.mood,
+            photoDescription: request.photoDescription
+        )
+    }
+
     static func upperPhrase(from fact: String, tone: DiaryTone) -> [String] {
+        upperPhrase(from: fact, tone: tone, photoDescription: nil)
+    }
+
+    static func upperPhrase(from fact: String, tone: DiaryTone, photoDescription: String?) -> [String] {
         let cleaned = fact
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: "　", with: " ")
@@ -1070,26 +1244,581 @@ enum DiaryFactPhraseGenerator {
             return ["ひとことを", "入れるだけで", "札になる"]
         }
 
-        let factLine = cleaned.shortPoemLine(limit: 8)
-        let bridge: String
-        let afterglow: String
+        let photoWords = Self.keywords(from: photoDescription)
+        let scene = Self.scene(from: cleaned, photoWords: photoWords)
 
         switch tone {
         case .joy:
-            bridge = "今日の余韻に"
-            afterglow = "光さす"
+            return [scene.opening, "胸の奥まで", "灯がともる"]
         case .sorrow:
-            bridge = "こころの隅で"
-            afterglow = "雨が降る"
+            return [scene.opening, "声にならずに", "夜へ溶ける"]
         case .calm:
-            bridge = "湯気のむこうに"
-            afterglow = "風やわし"
+            return [scene.opening, "息をひとつ", "ほどいてく"]
         case .anger:
-            bridge = "胸の火照りを"
-            afterglow = "夜へ置く"
+            return [scene.opening, "熱をしまって", "風を待つ"]
+        }
+    }
+
+    private static func scene(from fact: String, photoWords: [String]) -> (opening: String, object: String, place: String) {
+        let source = ([fact] + photoWords).joined(separator: " ")
+
+        let place: String
+        if source.contains("駅") || source.contains("電車") {
+            place = "駅の灯"
+        } else if source.contains("学校") || source.contains("授業") {
+            place = "教室の窓"
+        } else if source.contains("家") || source.contains("部屋") {
+            place = "部屋の灯"
+        } else if source.contains("カフェ") || source.contains("喫茶") {
+            place = "喫茶店"
+        } else if source.contains("道") || source.contains("帰") {
+            place = "帰り道"
+        } else {
+            place = ""
         }
 
-        return [factLine, bridge, afterglow]
+        let object: String
+        if source.contains("雨") || source.contains("濡") {
+            object = "雨粒"
+        } else if source.contains("空") || source.contains("青") {
+            object = "淡い空"
+        } else if source.contains("光") || source.contains("晴") || source.contains("明る") {
+            object = "光"
+        } else if source.contains("疲") || source.contains("眠") {
+            object = "重いまぶた"
+        } else if source.contains("友") || source.contains("話") {
+            object = "話し声"
+        } else if let photoWord = photoWords.first {
+            object = photoWord.shortPoemLine(limit: 5)
+        } else {
+            object = "今日の影"
+        }
+
+        let opening: String
+        if !place.isEmpty {
+            opening = "\(place)に".shortPoemLine(limit: 8)
+        } else {
+            opening = "\(object)ひとつ".shortPoemLine(limit: 8)
+        }
+
+        return (opening, object, place)
+    }
+
+    private static func keywords(from photoDescription: String?) -> [String] {
+        guard let photoDescription, !photoDescription.isEmpty else { return [] }
+
+        return photoDescription
+            .components(separatedBy: CharacterSet(charactersIn: "、, /"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+}
+
+enum WeatherVisualEffect: String, Hashable {
+    case none
+    case sunlight
+    case rain
+    case cloud
+    case snow
+    case night
+}
+
+struct AmbientAIContext: Equatable {
+    var weatherKeyword: String = "未取得"
+    var musicMood: String = "未取得"
+    var weatherEffect: WeatherVisualEffect = .none
+}
+
+final class ContextManager: NSObject, CLLocationManagerDelegate {
+    static let shared = ContextManager()
+
+    private let locationManager = CLLocationManager()
+
+    override private init() {
+        super.init()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+    }
+
+    func currentContext() async -> AmbientAIContext {
+        async let weather = weatherContext()
+        async let music = fetchMusicInfo()
+        let weatherResult = await weather
+        return AmbientAIContext(
+            weatherKeyword: weatherResult.keyword,
+            musicMood: await music,
+            weatherEffect: weatherResult.effect
+        )
+    }
+
+    func fetchWeatherInfo() async -> String {
+        await weatherContext().keyword
+    }
+
+    func fetchMusicInfo() async -> String {
+        #if canImport(MusicKit)
+        let status = await MusicAuthorization.request()
+        guard status == .authorized else {
+            return "未取得"
+        }
+
+        switch ApplicationMusicPlayer.shared.state.playbackStatus {
+        case .playing:
+            return "再生中の音楽：流れるような雰囲気"
+        case .paused:
+            return "一時停止中の音楽：静かな余韻"
+        case .stopped:
+            return "未取得"
+        default:
+            return "音楽の気配：淡い余韻"
+        }
+        #else
+        return "未取得"
+        #endif
+    }
+
+    private func weatherContext() async -> (keyword: String, effect: WeatherVisualEffect) {
+        guard CLLocationManager.locationServicesEnabled() else {
+            return ("未取得", .none)
+        }
+
+        await MainActor.run {
+            if locationManager.authorizationStatus == .notDetermined {
+                locationManager.requestWhenInUseAuthorization()
+            }
+            locationManager.requestLocation()
+        }
+
+        try? await Task.sleep(nanoseconds: 450_000_000)
+
+        guard let location = await MainActor.run(body: { locationManager.location }) else {
+            return ("未取得", .none)
+        }
+
+        #if canImport(WeatherKit)
+        do {
+            let weather = try await WeatherService.shared.weather(for: location)
+            let rawCondition = String(describing: weather.currentWeather.condition)
+            return (weatherKeyword(from: rawCondition), weatherEffect(from: rawCondition))
+        } catch {
+            return ("未取得", .none)
+        }
+        #else
+        return ("未取得", .none)
+        #endif
+    }
+
+    private func weatherKeyword(from rawCondition: String) -> String {
+        let lowercased = rawCondition.lowercased()
+        if lowercased.contains("rain") || rawCondition.contains("雨") {
+            return "雨の気配"
+        }
+        if lowercased.contains("snow") || rawCondition.contains("雪") {
+            return "雪あかり"
+        }
+        if lowercased.contains("cloud") || rawCondition.contains("曇") {
+            return "薄曇り"
+        }
+        if lowercased.contains("clear") || lowercased.contains("sun") || rawCondition.contains("晴") {
+            return "陽だまり"
+        }
+        return rawCondition.isEmpty ? "未取得" : rawCondition
+    }
+
+    private func weatherEffect(from rawCondition: String) -> WeatherVisualEffect {
+        let lowercased = rawCondition.lowercased()
+        if lowercased.contains("rain") || rawCondition.contains("雨") {
+            return .rain
+        }
+        if lowercased.contains("snow") || rawCondition.contains("雪") {
+            return .snow
+        }
+        if lowercased.contains("cloud") || rawCondition.contains("曇") {
+            return .cloud
+        }
+        if lowercased.contains("clear") || lowercased.contains("sun") || rawCondition.contains("晴") {
+            return .sunlight
+        }
+        return .none
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {}
+}
+
+struct AISuggestionRequest {
+    let photoDescription: String?
+    let factInput: String
+    let mood: DiaryTone
+    let weatherKeyword: String
+    let musicMood: String
+
+    var systemPrompt: String {
+        """
+        あなたは、日記を書く人の心にそっと寄り添う、親しみやすい短歌の語り手です。
+        難解な歌人のように格調高くしすぎず、今の自分の気持ちがそのまま少し美しく残る短歌を提案してください。
+
+        【素材】
+        - 写真の内容: \(photoDescription ?? "写真情報なし")
+        - 天気(WeatherKit): \(weatherKeyword)
+        - 音楽(MusicKit): \(musicMood)
+        - ユーザーが選んだ心持ち: \(mood.rawValue)（\(mood.title)）
+
+        【制約事項】
+        1. 接続禁止：日記本文の語句をそのまま末尾に接続して短歌にしないでください。
+        2. リライト：日記本文の事実と気持ちを汲み取り、全体を詩的な表現へ書き換えてください。
+        3. 言葉選び：現代的で分かりやすい言葉を使ってください。
+        4. 感情：嬉しい、寂しい、不安、幸せ、疲れた、安心した、などの感情をそのまま表現して構いません。
+        5. 構成：基本は5-7-5-7-7のリズムを目指しますが、文脈の自然さを優先してください。多少の字余り・字足らずがあっても、声に出して心地よいものを採用してください。
+        6. 天気と音楽：必須要素ではなく素材として扱ってください。晴れなら少し明るく、雨なら静かに、音楽があるなら余韻を少し混ぜる程度で十分です。
+        7. 上の句生成：写真、日記本文、心持ちを踏まえ、事実に基づいた上の句（5-7-5）を自動生成してください。
+        8. 下の句生成：ユーザーが選べるように、感情ベースの下の句（7-7）候補を複数提示してください。
+        9. 出力：上の句3句と、下の句候補を分けて出力してください。ユーザー入力を無理に繋げず、短歌としてふさわしい言葉に再構築してください。
+
+        【日記本文】
+        \(factInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "入力なし" : factInput)
+
+        【出力の方向性】
+        例：「お腹痛い」なら、
+        お腹痛い　薬を飲んで　眠ろうか　外は夕暮れ　月がぼんやり
+        のように、親しみやすく、少しだけ余韻のある表現にしてください。
+        """
+    }
+
+    var concreteKeywords: [String] {
+        let factWords = factInput
+            .components(separatedBy: CharacterSet(charactersIn: " 、。,.!！?？/　\n"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.count >= 2 }
+
+        let photoWords = (photoDescription ?? "")
+            .components(separatedBy: CharacterSet(charactersIn: "、, /"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return Array((factWords + photoWords).prefix(5))
+    }
+}
+
+struct AIComposerSuggestion: Equatable {
+    let upperPhrase: [String]
+    let lowerOptions: [String]
+
+    static let fallback = AIComposerSuggestion(
+        upperPhrase: ["ひとことを", "入れるだけで", "札になる"],
+        lowerOptions: [
+            "今はゆっくり 息をしてみる",
+            "今日の余白を そっとたたんで",
+            "またあと少し 言葉を待とう"
+        ]
+    )
+
+    static func generate(request: AISuggestionRequest) -> AIComposerGenerationState {
+        do {
+            let upperPhrase = DiaryFactPhraseGenerator.upperPhrase(request: request)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            let lowerOptions = AILowerPhraseGenerator.options(request: request)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+
+            guard upperPhrase.count >= 3, !lowerOptions.isEmpty else {
+                throw AIComposerGenerationError.emptySuggestion
+            }
+
+            return .success(
+                AIComposerSuggestion(
+                    upperPhrase: Array(upperPhrase.prefix(3)),
+                    lowerOptions: Array(lowerOptions.prefix(3))
+                )
+            )
+        } catch {
+            return .failure(error.localizedDescription)
+        }
+    }
+}
+
+enum AIComposerGenerationState: Equatable {
+    case success(AIComposerSuggestion)
+    case failure(String)
+}
+
+enum AIComposerGenerationError: LocalizedError {
+    case emptySuggestion
+
+    var errorDescription: String? {
+        "短歌候補を生成できませんでした。"
+    }
+}
+
+enum AILowerPhraseGenerator {
+    static func options(request: AISuggestionRequest) -> [String] {
+        let sceneWord = request.concreteKeywords.first?.shortPoemLine(limit: 5) ?? request.mood.defaultImageWord
+
+        switch request.mood {
+        case .joy:
+            return [
+                "うれしい気持ち 花のようです",
+                "笑った声を 袖にしまった",
+                "\(sceneWord)さえ 星に見えてる"
+            ]
+        case .sorrow:
+            return [
+                "さみしい気持ち 月が聞いてる",
+                "泣けない夜を そっと抱きしめ",
+                "\(sceneWord)の影 夜に預ける"
+            ]
+        case .calm:
+            return [
+                "安心ひとつ 胸に灯して",
+                "静かな今日を そっとたたんで",
+                "\(sceneWord)みたいに 心ほどける"
+            ]
+        case .anger:
+            return [
+                "怒ったわたし ちゃんと守ろう",
+                "言葉の熱を 風に逃がして",
+                "\(sceneWord)越しに 深呼吸する"
+            ]
+        }
+    }
+}
+
+struct TankaRewriteSuggestion: Identifiable, Equatable {
+    let title: String
+    let moodNote: String
+    let lines: [String]
+
+    var id: String { title }
+
+    var upperLines: [String] {
+        Array(lines.prefix(3))
+    }
+
+    var lowerPhrase: String {
+        Array(lines.dropFirst(3).prefix(2)).joined(separator: " ")
+    }
+
+    static func makeThree(request: AISuggestionRequest) -> [TankaRewriteSuggestion] {
+        let scene = sceneSeed(from: request)
+        let weather = request.weatherKeyword == "未取得" ? scene.weatherWord : request.weatherKeyword
+        let music = request.musicMood == "未取得" ? scene.soundWord : request.musicMood
+
+        switch request.mood {
+        case .joy:
+            return [
+                TankaRewriteSuggestion(
+                    title: "きらめき",
+                    moodNote: "明るく、少し弾む",
+                    lines: ["帰り道", "胸の小箱に", "灯がともる", "\(scene.object)さえ", "星に見えてる"]
+                ),
+                TankaRewriteSuggestion(
+                    title: "やさしい余韻",
+                    moodNote: "静かにうれしい",
+                    lines: ["今日のこと", "\(weather)に", "ほどけてく", "笑った声を", "袖にしまった"]
+                ),
+                TankaRewriteSuggestion(
+                    title: "ハイカラ",
+                    moodNote: "少し甘く華やか",
+                    lines: ["窓あかり", "\(scene.place)の先で", "揺れている", "\(music.shortPoemLine(limit: 7))", "花のリズムで"]
+                )
+            ]
+        case .sorrow:
+            return [
+                TankaRewriteSuggestion(
+                    title: "雨音",
+                    moodNote: "寂しさをやわらかく",
+                    lines: ["言えぬまま", "小さなため息", "ほどけてく", "\(scene.object)の影", "夜に預ける"]
+                ),
+                TankaRewriteSuggestion(
+                    title: "月明かり",
+                    moodNote: "切なさを残す",
+                    lines: ["うつむいて", "\(weather)の道を", "歩いてる", "さみしい気持ち", "月が聞いてる"]
+                ),
+                TankaRewriteSuggestion(
+                    title: "手紙",
+                    moodNote: "自分に寄り添う",
+                    lines: ["疲れたね", "声に出さずに", "書いてみる", "\(scene.place)の灯", "まだあたたかい"]
+                )
+            ]
+        case .calm:
+            return [
+                TankaRewriteSuggestion(
+                    title: "余白",
+                    moodNote: "穏やかで澄んだ",
+                    lines: ["ひと息を", "\(scene.place)の隅に", "置いてみる", "\(weather)の午後", "心ほどける"]
+                ),
+                TankaRewriteSuggestion(
+                    title: "湯気",
+                    moodNote: "生活の温度",
+                    lines: ["何気ない", "今日の輪郭", "なぞりつつ", "\(scene.object)みたいに", "やさしく眠る"]
+                ),
+                TankaRewriteSuggestion(
+                    title: "静かな音",
+                    moodNote: "音楽の余韻",
+                    lines: ["ゆっくりと", "\(music.shortPoemLine(limit: 7))", "遠ざかる", "明日のわたし", "少し軽くて"]
+                )
+            ]
+        case .anger:
+            return [
+                TankaRewriteSuggestion(
+                    title: "夜風",
+                    moodNote: "熱を逃がす",
+                    lines: ["むっとした", "胸の火照りを", "ほどく夜", "\(scene.object)越しに", "風を入れよう"]
+                ),
+                TankaRewriteSuggestion(
+                    title: "朱色",
+                    moodNote: "強さを残す",
+                    lines: ["言葉には", "できないままの", "赤い棘", "\(scene.place)の灯", "明日へ逃がす"]
+                ),
+                TankaRewriteSuggestion(
+                    title: "整える",
+                    moodNote: "落ち着きを取り戻す",
+                    lines: ["深呼吸", "\(weather)の下で", "目を閉じる", "怒ったわたし", "ちゃんと守ろう"]
+                )
+            ]
+        }
+    }
+
+    private static func sceneSeed(from request: AISuggestionRequest) -> (object: String, place: String, weatherWord: String, soundWord: String) {
+        let source = [
+            request.factInput,
+            request.photoDescription ?? "",
+            request.weatherKeyword,
+            request.musicMood
+        ].joined(separator: " ")
+
+        let object: String
+        if source.contains("雨") {
+            object = "濡れた傘"
+        } else if source.contains("空") || source.contains("晴") {
+            object = "淡い空"
+        } else if source.contains("写真") || source.contains("光") {
+            object = "写真の光"
+        } else if source.contains("音") || source.contains("曲") || source.contains("音楽") {
+            object = "歌の余韻"
+        } else if source.contains("疲") || source.contains("眠") {
+            object = "白い枕"
+        } else {
+            object = "小さな灯"
+        }
+
+        let place: String
+        if source.contains("駅") {
+            place = "駅のホーム"
+        } else if source.contains("学校") || source.contains("授業") {
+            place = "教室"
+        } else if source.contains("家") || source.contains("部屋") {
+            place = "部屋"
+        } else if source.contains("カフェ") || source.contains("喫茶") {
+            place = "喫茶店"
+        } else {
+            place = "帰り道"
+        }
+
+        let weatherWord: String
+        if source.contains("雨") {
+            weatherWord = "雨音"
+        } else if source.contains("晴") || source.contains("陽") {
+            weatherWord = "陽だまり"
+        } else if source.contains("曇") {
+            weatherWord = "曇り空"
+        } else {
+            weatherWord = "夜風"
+        }
+
+        let soundWord = source.contains("再生中") || source.contains("音楽") ? "流れる歌" : "静かな音"
+        return (object, place, weatherWord, soundWord)
+    }
+}
+
+struct LowerPhraseSuggestion {
+    let firstOptions: [String]
+    let secondOptionSets: [[String]]
+
+    func secondOptions(for firstIndex: Int) -> [String] {
+        secondOptionSets[safe: firstIndex] ?? secondOptionSets.first ?? ["今日をしまう", "胸に残して", "夜へ預ける"]
+    }
+
+    static func make(request: AISuggestionRequest) -> LowerPhraseSuggestion {
+        let keyword = request.concreteKeywords.first ?? request.mood.defaultKeyword
+        let photoKeyword = request.concreteKeywords.dropFirst().first ?? request.mood.defaultImageWord
+
+        switch request.mood {
+        case .joy:
+            return LowerPhraseSuggestion(
+                firstOptions: [
+                    "\(keyword.shortPoemLine(limit: 5))を抱いて",
+                    "笑みをかくして",
+                    "\(photoKeyword.shortPoemLine(limit: 5))の光"
+                ],
+                secondOptionSets: [
+                    ["星がほどける", "夜へしまう", "胸に灯して"],
+                    ["今日をしまう", "帰り道まで", "そっと連れて"],
+                    ["胸に残して", "明日へ渡す", "頬にひかる"]
+                ]
+            )
+        case .sorrow:
+            return LowerPhraseSuggestion(
+                firstOptions: [
+                    "\(keyword.shortPoemLine(limit: 5))を抱いて",
+                    "ため息ひとつ",
+                    "\(photoKeyword.shortPoemLine(limit: 5))の影"
+                ],
+                secondOptionSets: [
+                    ["月へ預ける", "夜が更ける", "灯が揺れる"],
+                    ["灯が揺れる", "胸にしまう", "雨へほどく"],
+                    ["夜へ沈める", "袖にしまって", "声をなくす"]
+                ]
+            )
+        case .calm:
+            return LowerPhraseSuggestion(
+                firstOptions: [
+                    "\(keyword.shortPoemLine(limit: 5))を眺め",
+                    "静かな息に",
+                    "\(photoKeyword.shortPoemLine(limit: 5))の風"
+                ],
+                secondOptionSets: [
+                    ["心ほどける", "明日が香る", "午後が眠る"],
+                    ["明日が香る", "袖にしまって", "湯気に溶ける"],
+                    ["そっと流れる", "今日をほどく", "余白ひらく"]
+                ]
+            )
+        case .anger:
+            return LowerPhraseSuggestion(
+                firstOptions: [
+                    "\(keyword.shortPoemLine(limit: 5))をほどき",
+                    "赤きこころを",
+                    "\(photoKeyword.shortPoemLine(limit: 5))の夜"
+                ],
+                secondOptionSets: [
+                    ["風に逃がして", "夜へほどいて", "星を数える"],
+                    ["夜へほどいて", "胸を冷ます", "言葉を置く"],
+                    ["息をととのえ", "明日へ逃がす", "影をしまう"]
+                ]
+            )
+        }
+    }
+}
+
+private extension DiaryTone {
+    var defaultKeyword: String {
+        switch self {
+        case .joy: return "ときめき"
+        case .sorrow: return "ため息"
+        case .calm: return "静けさ"
+        case .anger: return "胸の火"
+        }
+    }
+
+    var defaultImageWord: String {
+        switch self {
+        case .joy: return "淡い光"
+        case .sorrow: return "月影"
+        case .calm: return "風"
+        case .anger: return "夜"
+        }
     }
 }
 
@@ -1313,7 +2042,7 @@ struct UpperPhrasePreview: View {
                     isLowerPhrase: false,
                     accent: accent,
                     compact: false,
-                    isOpeningLine: index == 0
+                    fontSize: 15
                 )
             }
         }
@@ -1412,11 +2141,12 @@ struct ToneSegmentButton: View {
 
 struct LowerPhraseSlotStep: View {
     let tone: DiaryTone
+    let suggestion: LowerPhraseSuggestion
     @Binding var selectedFirstIndex: Int
     @Binding var selectedSecondIndex: Int
 
     private var secondOptions: [String] {
-        tone.lowerSecondOptions(for: selectedFirstIndex)
+        suggestion.secondOptions(for: selectedFirstIndex)
     }
 
     var body: some View {
@@ -1426,7 +2156,7 @@ struct LowerPhraseSlotStep: View {
             PhraseChoiceList(
                 title: "前半の七音",
                 subtitle: "上の句に続く、気持ちの入口",
-                options: tone.lowerFirstOptions,
+                options: suggestion.firstOptions,
                 selectedIndex: $selectedFirstIndex,
                 accent: tone.tint
             ) {
@@ -1441,6 +2171,238 @@ struct LowerPhraseSlotStep: View {
                 accent: tone.tint
             )
         }
+    }
+}
+
+struct AITankaFlowStep: View {
+    let tone: DiaryTone
+    let upperLines: [String]
+    let lowerOptions: [String]
+    @Binding var selectedLowerIndex: Int
+    @Binding var customLowerText: String
+
+    private var customIndex: Int { lowerOptions.count }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            DiaryFormSection {
+                StepSectionTitle(number: "3", title: "上の句（自動）")
+
+                Text("写真・今日の事実・今のこころから、事実を短歌らしい情景へ書き換えます。")
+                    .font(UtakataFontStyle.rounded(size: 12, weight: .medium))
+                    .foregroundStyle(Color.secondaryText)
+
+                UpperPhrasePreview(lines: upperLines, accent: tone.tint)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+
+            DiaryFormSection {
+                StepSectionTitle(number: "4", title: "下の句を選ぶ")
+
+                VStack(spacing: 10) {
+                    ForEach(Array(lowerOptions.enumerated()), id: \.offset) { index, phrase in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                selectedLowerIndex = index
+                            }
+                        } label: {
+                            LowerPhraseSelectionRow(
+                                phrase: phrase,
+                                accent: tone.tint,
+                                isSelected: selectedLowerIndex == index
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            selectedLowerIndex = customIndex
+                        }
+                    } label: {
+                        HStack(spacing: 9) {
+                            Image(systemName: selectedLowerIndex == customIndex ? "checkmark.circle.fill" : "circle")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(selectedLowerIndex == customIndex ? Color.meijiRed : Color.secondaryText.opacity(0.62))
+                            Text("自由に記入する")
+                                .font(UtakataFontStyle.rounded(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.primaryText)
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    TextField("例：夜風のなかで 少し休もう", text: $customLowerText)
+                        .textFieldStyle(.plain)
+                        .font(UtakataFontStyle.rounded(size: 15, weight: .medium))
+                        .foregroundStyle(Color.primaryText)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 13)
+                        .background(Color(hex: 0xFFF9F2).opacity(0.92), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(selectedLowerIndex == customIndex ? Color.meijiRed.opacity(0.44) : Color.retroGold.opacity(0.24), lineWidth: 0.9))
+                        .onTapGesture {
+                            selectedLowerIndex = customIndex
+                        }
+                }
+                .padding(.top, 2)
+            }
+        }
+        .onChange(of: lowerOptions) { _, newValue in
+            if selectedLowerIndex > newValue.count {
+                selectedLowerIndex = 0
+            }
+        }
+    }
+}
+
+struct LowerPhraseSelectionRow: View {
+    let phrase: String
+    let accent: Color
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            PlumBlossom()
+                .fill(isSelected ? accent.opacity(0.88) : accent.opacity(0.16))
+                .frame(width: 18, height: 18)
+
+            Text(phrase)
+                .font(UtakataFontStyle.rounded(size: 15, weight: .semibold))
+                .foregroundStyle(Color.primaryText.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
+
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.meijiRed)
+            }
+        }
+        .padding(.vertical, 13)
+        .padding(.horizontal, 14)
+        .background {
+            LinearGradient(
+                colors: [
+                    Color(hex: 0xFFF9F2).opacity(0.94),
+                    Color(hex: 0xF7E7D5).opacity(0.88),
+                    accent.opacity(isSelected ? 0.12 : 0.04)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(isSelected ? accent.opacity(0.7) : Color.retroGold.opacity(0.24), lineWidth: isSelected ? 1.2 : 0.8)
+        )
+    }
+}
+
+struct TankaSuggestionStep: View {
+    let tone: DiaryTone
+    let suggestions: [TankaRewriteSuggestion]
+    @Binding var selectedIndex: Int
+
+    var body: some View {
+        DiaryFormSection {
+            StepSectionTitle(number: "3", title: "短歌を選ぶ")
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text("日記の一節を、そのまま繋げずに詩へ書き換えた3案です。")
+                    .font(UtakataFontStyle.rounded(size: 12, weight: .medium))
+                    .foregroundStyle(Color.secondaryText)
+
+                VStack(spacing: 10) {
+                    ForEach(Array(suggestions.enumerated()), id: \.offset) { index, suggestion in
+                        Button {
+                            withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
+                                selectedIndex = index
+                            }
+                        } label: {
+                            TankaSuggestionRow(
+                                suggestion: suggestion,
+                                accent: tone.tint,
+                                isSelected: selectedIndex == index
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .onChange(of: suggestions) { _, newValue in
+            if selectedIndex >= newValue.count {
+                selectedIndex = 0
+            }
+        }
+    }
+}
+
+struct TankaSuggestionRow: View {
+    let suggestion: TankaRewriteSuggestion
+    let accent: Color
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(spacing: 4) {
+                PlumBlossom()
+                    .fill(isSelected ? accent.opacity(0.92) : accent.opacity(0.18))
+                    .frame(width: 18, height: 18)
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.meijiRed)
+                }
+            }
+            .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 8) {
+                    Text(suggestion.title)
+                        .font(UtakataFontStyle.rounded(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.primaryText)
+                    Text(suggestion.moodNote)
+                        .font(UtakataFontStyle.rounded(size: 11, weight: .regular))
+                        .foregroundStyle(Color.secondaryText)
+                    Spacer(minLength: 0)
+                }
+
+                Text(suggestion.lines.joined(separator: "　"))
+                    .font(.system(size: 14, weight: .regular, design: .serif))
+                    .foregroundStyle(Color.primaryText.opacity(0.86))
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 13)
+        .background {
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(hex: 0xFFF9F2).opacity(0.94),
+                        Color(hex: 0xF7E7D5).opacity(0.88),
+                        accent.opacity(isSelected ? 0.12 : 0.04)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                WashiPattern()
+                    .opacity(0.14)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .stroke(isSelected ? accent.opacity(0.72) : Color.retroGold.opacity(0.26), lineWidth: isSelected ? 1.3 : 0.8)
+        )
+        .scaleEffect(isSelected ? 1.01 : 1)
     }
 }
 
@@ -1545,6 +2507,7 @@ struct CompletedTankaStep: View {
     let lowerPhrase: String
     let mood: CardMood
     let photoData: Data?
+    let weatherEffect: WeatherVisualEffect
     let isStoring: Bool
     @State private var didOpen = false
 
@@ -1558,7 +2521,8 @@ struct CompletedTankaStep: View {
                     upperPhrase: upperPhrase,
                     lowerPhrase: lowerPhrase,
                     accent: mood.accent,
-                    photoData: photoData
+                    photoData: photoData,
+                    weatherEffect: weatherEffect
                 )
                 .frame(width: 252, height: 386)
                 .scaleEffect(isStoring ? 0.42 : 1)
@@ -1592,6 +2556,7 @@ struct TankaOmikujiPreviewCard: View {
     let lowerPhrase: String
     let accent: Color
     let photoData: Data?
+    let weatherEffect: WeatherVisualEffect
     @AppStorage("utakataNickname") private var nickname = ""
 
     private var allLines: [String] {
@@ -1600,7 +2565,7 @@ struct TankaOmikujiPreviewCard: View {
 
     private var authorName: String {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "わたし" : trimmed
+        return trimmed.isEmpty ? "名無しの詠み人" : trimmed
     }
 
     private var cardDateText: String {
@@ -1636,69 +2601,25 @@ struct TankaOmikujiPreviewCard: View {
 
             TaishoCheckPattern(color: Color.meijiRed.opacity(0.025), tile: 24)
 
-            VStack(spacing: 12) {
+            WeatherAtmosphereCanvas(effect: weatherEffect, accent: accent)
+                .opacity(0.42)
+                .allowsHitTesting(false)
+
+            VStack(spacing: 11) {
                 Text(cardDateText)
                     .font(UtakataFontStyle.handLetter(size: 13, weight: .regular))
                     .foregroundStyle(Color.primaryText.opacity(0.58))
-                    .padding(.top, 18)
+                    .padding(.top, 20)
 
-                if let selectedImage {
-                    RetroPhotoFrame(image: selectedImage)
-                        .frame(height: 126)
-                        .padding(.horizontal, 24)
-                        .shadow(color: .black.opacity(0.10), radius: 9, x: 0, y: 6)
-                } else {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(hex: 0xFFF9F2).opacity(0.56))
-                        .overlay(
-                            VStack(spacing: 5) {
-                                PlumBlossom()
-                                    .fill(accent.opacity(0.24))
-                                    .frame(width: 20, height: 20)
-                                Text("今日の余白")
-                                    .font(UtakataFontStyle.handLetter(size: 12, weight: .regular))
-                                    .foregroundStyle(Color.secondaryText.opacity(0.72))
-                            }
-                        )
-                        .frame(height: 74)
-                        .padding(.horizontal, 38)
-                }
-
-                HStack(alignment: .top, spacing: 8) {
-                    ForEach(Array(allLines.enumerated()).reversed(), id: \.offset) { index, line in
-                        VerticalPoemLine(
-                            text: line,
-                            isLowerPhrase: index >= 3,
-                            accent: accent,
-                            compact: false,
-                            isOpeningLine: index == 0
-                        )
-                    }
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .background(Color(hex: 0xFFF9F2).opacity(0.66), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.retroGold.opacity(0.18), lineWidth: 0.8))
-                .shadow(color: Color(hex: 0xFFF9F2).opacity(0.75), radius: 1.2, x: 0, y: 0)
-                .padding(.horizontal, 20)
+                TanzakuCard(
+                    image: selectedImage,
+                    lines: allLines,
+                    authorName: authorName,
+                    accent: accent
+                )
+                .padding(.horizontal, 16)
 
                 Spacer(minLength: 0)
-
-                HStack(spacing: 8) {
-                    Rectangle()
-                        .fill(Color.retroGold.opacity(0.32))
-                        .frame(width: 28, height: 0.8)
-                    Text("詠み人：\(authorName)")
-                        .font(UtakataFontStyle.retroMincho(size: 11, weight: .regular))
-                        .foregroundStyle(Color.primaryText.opacity(0.62))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Rectangle()
-                        .fill(Color.retroGold.opacity(0.32))
-                        .frame(width: 28, height: 0.8)
-                }
-                .padding(.bottom, 18)
             }
             .padding(.horizontal, 4)
 
@@ -1739,6 +2660,296 @@ struct TankaOmikujiPreviewCard: View {
             return "三十一"
         default:
             return "\(value)"
+        }
+    }
+}
+
+struct TanzakuCard: View {
+    let image: Image?
+    let lines: [String]
+    let authorName: String
+    let accent: Color
+
+    private var upperLines: [String] {
+        Array(lines.prefix(3))
+    }
+
+    private var lowerLines: [String] {
+        Array(lines.dropFirst(3).prefix(2))
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(hex: 0xFFF4EF),
+                            Color(hex: 0xFFF9F2),
+                            Color(hex: 0xF4E4CB).opacity(0.86),
+                            accent.opacity(0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            WashiPattern()
+                .opacity(0.24)
+                .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 13) {
+                ZStack {
+                    Rectangle()
+                        .fill(Color(hex: 0xF7E9DD).opacity(0.78))
+
+                    if let image {
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .saturation(0.82)
+                            .contrast(1.04)
+                            .colorMultiply(Color(hex: 0xF8E1C5))
+                    } else {
+                        VStack(spacing: 8) {
+                            PlumBlossom()
+                                .fill(accent.opacity(0.24))
+                                .frame(width: 24, height: 24)
+                            Text("今日の余白")
+                                .font(.system(size: 13, weight: .regular, design: .rounded))
+                                .foregroundStyle(Color.secondaryText.opacity(0.72))
+                        }
+                    }
+                }
+                .frame(height: 132)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    LinearGradient(
+                        colors: [.clear, Color(hex: 0xFFF9F2).opacity(0.16)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                )
+                .clipped()
+
+                TategakiTankaView(lines: upperLines + lowerLines, accent: accent)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 112)
+                    .padding(.horizontal, 5)
+
+                HStack(spacing: 5) {
+                    Spacer()
+                    Text("詠み人：\(authorName)")
+                        .font(.system(size: 9.4, weight: .light, design: .default))
+                        .foregroundStyle(Color(hex: 0x555555).opacity(0.82))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                }
+            }
+            .padding(13)
+        }
+        .frame(width: 216, height: 314)
+        .shadow(color: .black.opacity(0.20), radius: 22, x: 0, y: 14)
+    }
+}
+
+struct DiaryPoemLineGroup: View {
+    let lines: [String]
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                Text(line)
+                    .font(.system(size: index == 0 ? 15 : 14, weight: index == 0 ? .regular : .light, design: .default))
+                    .foregroundStyle(Color.primaryText.opacity(index == 0 ? 0.92 : 0.82))
+                    .lineSpacing(10)
+                    .tracking(0.6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
+
+struct TategakiTankaView: View {
+    let lines: [String]
+    let accent: Color
+
+    private var normalizedLines: [String] {
+        var result = lines.prefix(5).map { $0.normalizedVerticalPoemText }
+        while result.count < 5 {
+            result.append("")
+        }
+        return result
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let maxCount = max(normalizedLines.map(\.count).max() ?? 1, 1)
+            let characterSpacing = 2.2
+            let availableHeight = max(44, proxy.size.height - 22)
+            let fittedFontSize = min(
+                15.0,
+                max(9.0, (availableHeight - CGFloat(maxCount - 1) * characterSpacing) / CGFloat(maxCount))
+            )
+
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(Array(normalizedLines.enumerated()).reversed(), id: \.offset) { index, line in
+                    VerticalTankaColumn(
+                        text: line,
+                        isLowerPhrase: index >= 3,
+                        accent: accent,
+                        fontSize: fittedFontSize
+                    )
+
+                    if index == 3 {
+                        VerticalTankaDivider(accent: accent)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 6)
+        .background(Color(hex: 0xFFF9F2).opacity(0.46), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.16), lineWidth: 0.8))
+    }
+}
+
+struct VerticalTankaColumn: View {
+    let text: String
+    let isLowerPhrase: Bool
+    let accent: Color
+    let fontSize: CGFloat
+
+    private var characters: [String] {
+        text.normalizedVerticalPoemText.map(String.init)
+    }
+
+    var body: some View {
+        VStack(spacing: 2.2) {
+            ForEach(Array(characters.enumerated()), id: \.offset) { _, character in
+                Text(character)
+                    .font(.system(size: fontSize, weight: .regular, design: .serif))
+                    .foregroundStyle(isLowerPhrase ? Color.primaryText.opacity(0.78) : Color.primaryText.opacity(0.90))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .allowsTightening(true)
+                    .tracking(1.2)
+                    .shadow(color: Color(hex: 0xFFF9F2).opacity(0.45), radius: 0.5, x: 0, y: 0.5)
+            }
+        }
+        .frame(width: 19)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(.top, isLowerPhrase ? 4 : 0)
+        .clipped()
+    }
+}
+
+struct VerticalTankaDivider: View {
+    let accent: Color
+
+    var body: some View {
+        VStack(spacing: 5) {
+            ForEach(0..<5, id: \.self) { _ in
+                Circle()
+                    .fill(Color.retroGold.opacity(0.36))
+                    .frame(width: 3.5, height: 3.5)
+            }
+        }
+        .frame(width: 8)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(.top, 12)
+    }
+}
+
+private extension String {
+    var normalizedVerticalPoemText: String {
+        replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "　", with: "")
+            .replacingOccurrences(of: "\n", with: "")
+    }
+}
+
+struct WeatherAtmosphereCanvas: View {
+    let effect: WeatherVisualEffect
+    let accent: Color
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                let time = timeline.date.timeIntervalSinceReferenceDate
+
+                switch effect {
+                case .sunlight:
+                    drawSunlight(in: &context, size: size, time: time)
+                case .rain:
+                    drawRain(in: &context, size: size, time: time)
+                case .cloud:
+                    drawCloud(in: &context, size: size, time: time)
+                case .snow:
+                    drawSnow(in: &context, size: size, time: time)
+                case .night:
+                    drawNight(in: &context, size: size, time: time)
+                case .none:
+                    drawSunlight(in: &context, size: size, time: time, opacity: 0.18)
+                }
+            }
+        }
+    }
+
+    private func drawSunlight(in context: inout GraphicsContext, size: CGSize, time: TimeInterval, opacity: Double = 0.34) {
+        for index in 0..<18 {
+            let progress = (CGFloat(time * 0.05) + CGFloat(index) * 0.137).truncatingRemainder(dividingBy: 1)
+            let x = size.width * CGFloat((index * 37) % 100) / 100
+            let y = size.height * progress
+            let radius = CGFloat(2 + (index % 4))
+            let rect = CGRect(x: x, y: y, width: radius, height: radius)
+            context.fill(Path(ellipseIn: rect), with: .color(Color.retroGold.opacity(opacity)))
+        }
+    }
+
+    private func drawRain(in context: inout GraphicsContext, size: CGSize, time: TimeInterval) {
+        for index in 0..<24 {
+            let progress = (CGFloat(time * 0.22) + CGFloat(index) * 0.071).truncatingRemainder(dividingBy: 1)
+            let x = size.width * CGFloat((index * 29) % 100) / 100
+            let y = size.height * progress
+            var path = Path()
+            path.move(to: CGPoint(x: x, y: y))
+            path.addLine(to: CGPoint(x: x - 5, y: y + 18))
+            context.stroke(path, with: .color(Color.meijiBlue.opacity(0.22)), lineWidth: 1.0)
+        }
+    }
+
+    private func drawCloud(in context: inout GraphicsContext, size: CGSize, time: TimeInterval) {
+        for index in 0..<6 {
+            let drift = sin(time * 0.25 + Double(index)) * 10
+            let x = size.width * CGFloat(index + 1) / 7 + CGFloat(drift)
+            let y = size.height * CGFloat(0.18 + Double(index % 3) * 0.22)
+            let rect = CGRect(x: x - 34, y: y - 12, width: 68, height: 24)
+            context.fill(Path(ellipseIn: rect), with: .color(Color(hex: 0xB8CAD0).opacity(0.16)))
+        }
+    }
+
+    private func drawSnow(in context: inout GraphicsContext, size: CGSize, time: TimeInterval) {
+        for index in 0..<22 {
+            let progress = (CGFloat(time * 0.04) + CGFloat(index) * 0.083).truncatingRemainder(dividingBy: 1)
+            let sway = sin(time * 0.8 + Double(index)) * 8
+            let x = size.width * CGFloat((index * 41) % 100) / 100 + CGFloat(sway)
+            let y = size.height * progress
+            let rect = CGRect(x: x, y: y, width: 3.5, height: 3.5)
+            context.fill(Path(ellipseIn: rect), with: .color(Color.white.opacity(0.38)))
+        }
+    }
+
+    private func drawNight(in context: inout GraphicsContext, size: CGSize, time: TimeInterval) {
+        for index in 0..<16 {
+            let pulse = 0.18 + 0.12 * (sin(time * 0.9 + Double(index)) + 1) / 2
+            let x = size.width * CGFloat((index * 31) % 100) / 100
+            let y = size.height * CGFloat((index * 47) % 100) / 100
+            let rect = CGRect(x: x, y: y, width: 2.6, height: 2.6)
+            context.fill(Path(ellipseIn: rect), with: .color(accent.opacity(pulse)))
         }
     }
 }
@@ -2027,8 +3238,8 @@ struct CustomLowerPhraseField: View {
 
 struct DiaryPhotoMenuButton: View {
     let photoData: Data?
-    @Binding var selectedItem: PhotosPickerItem?
     let onCameraTap: () -> Void
+    let onLibraryTap: () -> Void
 
     var body: some View {
         Menu {
@@ -2036,29 +3247,38 @@ struct DiaryPhotoMenuButton: View {
                 Label(photoData == nil ? "写真を撮る" : "撮り直す", systemImage: "camera.fill")
             }
 
-            PhotosPicker(selection: $selectedItem, matching: .images) {
-                Label(photoData == nil ? "ライブラリから選ぶ" : "ライブラリから変更", systemImage: "photo.on.rectangle")
+            Button(action: onLibraryTap) {
+                Label(photoData == nil ? "写真を選択" : "写真を変更", systemImage: "photo.on.rectangle")
             }
         } label: {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: photoData == nil ? "camera.fill" : "checkmark.circle.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(photoData == nil ? Color.meijiRed : Color.retroPaper)
-                    .frame(width: 43, height: 43)
-                    .background(
-                        photoData == nil
-                        ? LinearGradient(colors: [Color(hex: 0xFFF9F2), Color.retroPaper], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        : LinearGradient(colors: [Color.meijiRed, Color.retroRose], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: Circle()
-                    )
-                    .overlay(Circle().stroke(Color.meijiRed.opacity(0.28), lineWidth: 0.9))
-                    .overlay(Circle().stroke(Color.retroGold.opacity(0.38), lineWidth: 0.7).padding(4))
-                    .shadow(color: Color.meijiRed.opacity(0.12), radius: 8, x: 0, y: 4)
+            VStack(spacing: 4) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: photoData == nil ? "camera.fill" : "checkmark.circle.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(photoData == nil ? Color.meijiRed : Color.retroPaper)
+                        .frame(width: 58, height: 58)
+                        .background(
+                            photoData == nil
+                            ? LinearGradient(colors: [Color(hex: 0xFFF9F2), Color.retroPaper], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            : LinearGradient(colors: [Color.meijiRed, Color.retroRose], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: Circle()
+                        )
+                        .overlay(Circle().stroke(Color.meijiRed.opacity(0.28), lineWidth: 0.9))
+                        .overlay(Circle().stroke(Color.retroGold.opacity(0.38), lineWidth: 0.7).padding(5))
+                        .shadow(color: Color.meijiRed.opacity(0.14), radius: 10, x: 0, y: 5)
 
-                PlumBlossom()
-                    .fill(Color.retroGold.opacity(photoData == nil ? 0.72 : 0.95))
-                    .frame(width: 9, height: 9)
-                    .offset(x: -3, y: 3)
+                    PlumBlossom()
+                        .fill(Color.retroGold.opacity(photoData == nil ? 0.72 : 0.95))
+                        .frame(width: 11, height: 11)
+                        .offset(x: -4, y: 5)
+                }
+
+                Text(photoData == nil ? "写真" : "追加済")
+                    .font(UtakataFontStyle.rounded(size: 10, weight: .semibold))
+                    .foregroundStyle(photoData == nil ? Color.meijiRed : Color.retroPaper)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(photoData == nil ? Color(hex: 0xFFF9F2).opacity(0.82) : Color.meijiRed.opacity(0.9), in: Capsule())
             }
             .accessibilityLabel(photoData == nil ? "写真を追加" : "写真を変更")
         }
@@ -2182,6 +3402,47 @@ struct CameraPicker: UIViewControllerRepresentable {
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             onCancel()
+        }
+    }
+}
+
+private extension UIImage {
+    static func diaryStorageJPEGData(from data: Data, maxPixel: CGFloat = 1600, compressionQuality: CGFloat = 0.78) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        return image.diaryStorageJPEGData(maxPixel: maxPixel, compressionQuality: compressionQuality)
+    }
+
+    func diaryStorageJPEGData(maxPixel: CGFloat = 1600, compressionQuality: CGFloat = 0.78) -> Data? {
+        let resized = diaryResized(maxPixel: maxPixel)
+        return resized.jpegData(compressionQuality: compressionQuality)
+    }
+
+    func diaryResized(maxPixel: CGFloat) -> UIImage {
+        let longestSide = max(size.width, size.height)
+        guard longestSide > maxPixel, longestSide > 0 else {
+            return normalizedForDiaryStorage()
+        }
+
+        let scale = maxPixel / longestSide
+        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+
+        return UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
+
+    func normalizedForDiaryStorage() -> UIImage {
+        guard imageOrientation != .up else { return self }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
         }
     }
 }

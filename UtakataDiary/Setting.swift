@@ -345,6 +345,7 @@ struct UserSettingsScreen: View {
                         Text("生年月日")
                             .foregroundStyle(Color.settingInk)
                     }
+                    .environment(\.locale, Locale(identifier: "ja_JP"))
                     Toggle(isOn: $locationEnabled) {
                         Text("位置情報の利用許可")
                             .foregroundStyle(Color.settingInk)
@@ -487,12 +488,30 @@ struct DisplayDesignSettingsScreen: View {
 }
 
 struct DataManagementSettingsScreen: View {
+    @AppStorage("utakataICloudSyncEnabled") private var iCloudSyncEnabled = false
+
     var body: some View {
         StandardSettingsBackground {
             List {
                 Section {
-                    Button("iCloudと同期してバックアップ作成") {}
-                        .foregroundStyle(Color.meijiRed)
+                    Toggle(isOn: $iCloudSyncEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("iCloud同期")
+                                .foregroundStyle(Color.settingInk)
+                            Text("ONにすると、この端末の日記をあなたのiCloudに保存して同期します。")
+                                .font(.caption)
+                                .foregroundStyle(Color.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .tint(Color.meijiRed)
+                }
+                header: {
+                    SettingListHeader("バックアップ")
+                } footer: {
+                    Text("開発者はiCloud上の日記や写真にアクセスできません。同期をOFFにすると、この端末内での利用に戻ります。")
+                        .font(.caption)
+                        .foregroundStyle(Color.secondaryText)
                 }
                 .utakataGroupedRows()
             }
