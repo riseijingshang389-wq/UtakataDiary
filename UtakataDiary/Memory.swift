@@ -51,14 +51,14 @@ struct MemoryView: View {
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 20)
-                .padding(.bottom, 196)
+                .padding(.bottom, 140)
             }
 
             FloatingDiaryActionButton {
                 showingComposer = true
             }
             .padding(.trailing, 24)
-            .padding(.bottom, 148)
+            .padding(.bottom, 88)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
 
             if let selectedCard {
@@ -731,6 +731,12 @@ struct KarutaMemoryTile: View {
 
 struct ModernKarutaFront: View {
     let card: DiaryCard
+    @AppStorage("utakataNickname") private var nickname = ""
+
+    private var authorName: String {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "わたし" : trimmed
+    }
 
     var body: some View {
         ZStack {
@@ -815,6 +821,12 @@ struct ModernKarutaFront: View {
                         .font(.caption2.monospacedDigit().weight(.bold))
                         .foregroundStyle(card.mood.accent)
                     Spacer()
+                    Text("詠み人：\(authorName)")
+                        .font(UtakataFontStyle.handLetter(size: 9, weight: .regular))
+                        .foregroundStyle(Color.primaryText.opacity(0.58))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.62)
+                    Spacer(minLength: 6)
                     HStack(spacing: 5) {
                         Circle()
                             .fill(card.mood.accent.opacity(0.55))
@@ -832,6 +844,12 @@ struct ModernKarutaFront: View {
 
 struct KarutaDiaryBack: View {
     let card: DiaryCard
+    @AppStorage("utakataNickname") private var nickname = ""
+
+    private var authorName: String {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "わたし" : trimmed
+    }
 
     var body: some View {
         ZStack {
@@ -849,12 +867,19 @@ struct KarutaDiaryBack: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             VStack(spacing: 10) {
-                Text(card.date.karutaDay)
-                    .font(.caption2.monospacedDigit().weight(.black))
-                    .foregroundStyle(card.mood.accent)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(Color.retroPaper.opacity(0.68), in: Capsule())
+                VStack(spacing: 4) {
+                    Text(card.date.karutaDay)
+                        .font(.caption2.monospacedDigit().weight(.black))
+                        .foregroundStyle(card.mood.accent)
+                    Text("詠み人：\(authorName)")
+                        .font(UtakataFontStyle.handLetter(size: 10, weight: .regular))
+                        .foregroundStyle(Color.primaryText.opacity(0.62))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Color.retroPaper.opacity(0.68), in: Capsule())
 
                 HStack(alignment: .top, spacing: 9) {
                     ForEach(Array(card.lowerPhrase.tankaLowerLines().enumerated()).reversed(), id: \.offset) { _, line in
@@ -904,6 +929,12 @@ struct KarutaDiaryBack: View {
 
 struct MemoryPreviewCard: View {
     let card: DiaryCard
+    @AppStorage("utakataNickname") private var nickname = ""
+
+    private var authorName: String {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "わたし" : trimmed
+    }
 
     var body: some View {
         HStack(spacing: 18) {
@@ -920,6 +951,9 @@ struct MemoryPreviewCard: View {
                 Text(card.date.memoryTitle)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Color.primaryText)
+                Text("詠み人：\(authorName)")
+                    .font(UtakataFontStyle.handLetter(size: 13, weight: .regular))
+                    .foregroundStyle(Color.primaryText.opacity(0.58))
                 Text(card.upperPhrase.joined(separator: " / "))
                     .font(.body.weight(.medium))
                     .foregroundStyle(Color.secondaryText)

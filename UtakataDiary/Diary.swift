@@ -53,14 +53,14 @@ struct TodayView: View {
                     }
                     .padding(.horizontal, 18)
                     .padding(.top, 18)
-                    .padding(.bottom, 126)
+                    .padding(.bottom, 112)
                 }
 
                 FloatingDiaryActionButton {
                     showingComposer = true
                 }
                 .padding(.trailing, 24)
-                .padding(.bottom, 148)
+                .padding(.bottom, 88)
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingComposer) {
@@ -692,12 +692,16 @@ struct DiaryComposerView: View {
     @State private var manualLowerText = ""
     @State private var manualHint: String?
     @State private var selectedTone = DiaryTone.joy
-    @State private var selectedLowerIndex = 0
+    @State private var selectedLowerFirstIndex = 0
+    @State private var selectedLowerSecondIndex = 0
     @State private var isStoring = false
     @State private var sparkleBurst = false
 
     private var currentLowerPhrase: String {
-        selectedTone.lowerOptions[safe: selectedLowerIndex] ?? selectedTone.lowerOptions[0]
+        let first = selectedTone.lowerFirstOptions[safe: selectedLowerFirstIndex] ?? selectedTone.lowerFirstOptions[0]
+        let secondOptions = selectedTone.lowerSecondOptions(for: selectedLowerFirstIndex)
+        let second = secondOptions[safe: selectedLowerSecondIndex] ?? secondOptions[0]
+        return "\(first) \(second)"
     }
 
     private var effectiveLowerPhrase: String {
@@ -740,16 +744,21 @@ struct DiaryComposerView: View {
                 .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 14) {
                     HeaderView(title: "日記を作成", subtitle: "5秒で一首")
 
-                    DiaryComposerModeSwitcher(mode: $mode)
+                    HStack(alignment: .center, spacing: 12) {
+                        DiaryComposerModeSwitcher(mode: $mode)
 
-                    DiarySourcePicker(
-                        photoData: photoData,
-                        selectedItem: $selectedPhotoItem,
-                        onCameraTap: { showingCamera = true }
-                    )
+                        DiaryPhotoMenuButton(
+                            photoData: photoData,
+                            selectedItem: $selectedPhotoItem,
+                            onCameraTap: { showingCamera = true }
+                        )
+                    }
+
+                    LetterPaperDivider()
+                        .padding(.vertical, 2)
 
                     if mode == .ai {
                         FactInputStep(factText: $factText)
@@ -764,12 +773,17 @@ struct DiaryComposerView: View {
                         )
                     }
 
-                    TonePickerStep(selectedTone: $selectedTone, selectedLowerIndex: $selectedLowerIndex)
+                    TonePickerStep(
+                        selectedTone: $selectedTone,
+                        selectedLowerFirstIndex: $selectedLowerFirstIndex,
+                        selectedLowerSecondIndex: $selectedLowerSecondIndex
+                    )
 
                     if mode == .ai {
                         LowerPhraseSlotStep(
                             tone: selectedTone,
-                            selectedIndex: $selectedLowerIndex
+                            selectedFirstIndex: $selectedLowerFirstIndex,
+                            selectedSecondIndex: $selectedLowerSecondIndex
                         )
                     } else {
                         ManualTextAreaStep(
@@ -797,7 +811,7 @@ struct DiaryComposerView: View {
                         } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: "archivebox.fill")
-                                Text("日記を棚に納める")
+                                Text("この札を保存する")
                             }
                             .font(.headline.weight(.semibold))
                             .frame(maxWidth: .infinity)
@@ -817,7 +831,7 @@ struct DiaryComposerView: View {
                     .padding(.bottom, 110)
                 }
                 .padding(.horizontal, 22)
-                .padding(.top, 22)
+                .padding(.top, 18)
             }
 
             if sparkleBurst {
@@ -980,32 +994,67 @@ enum DiaryTone: String, CaseIterable, Hashable {
         }
     }
 
-    var lowerOptions: [String] {
+    var lowerFirstOptions: [String] {
         switch self {
         case .joy:
             return [
-                "ときめき抱いて 星がほどける",
-                "笑みをかくして 夜へしまう",
-                "胸の灯だけを そっと連れて"
+                "ときめき抱いて",
+                "笑みをかくして",
+                "胸の灯だけを"
             ]
         case .sorrow:
             return [
-                "憂いをのせて 夜が更ける",
-                "ため息ひとつ 灯が揺れる",
-                "言えないままに 月へ預ける"
+                "憂いをのせて",
+                "ため息ひとつ",
+                "言えないままに"
             ]
         case .calm:
             return [
-                "静かな息に 明日が香る",
-                "湯気のむこうで 心ほどける",
-                "やさしい影を 袖にしまって"
+                "静かな息に",
+                "湯気のむこうで",
+                "やさしい影を"
             ]
         case .anger:
             return [
-                "赤きこころを 風に逃がして",
-                "むっとしたまま 星を数える",
-                "尖った言葉を 夜へほどいて"
+                "赤きこころを",
+                "むっとしたまま",
+                "尖った言葉を"
             ]
+        }
+    }
+
+    func lowerSecondOptions(for firstIndex: Int) -> [String] {
+        switch self {
+        case .joy:
+            return [
+                ["星がほどける", "夜へしまう", "そっと連れて"],
+                ["夜へしまう", "星がほどける", "そっと連れて"],
+                ["そっと連れて", "夜へしまう", "星がほどける"]
+            ][safe: firstIndex] ?? ["星がほどける", "夜へしまう", "そっと連れて"]
+        case .sorrow:
+            return [
+                ["夜が更ける", "灯が揺れる", "月へ預ける"],
+                ["灯が揺れる", "夜が更ける", "月へ預ける"],
+                ["月へ預ける", "灯が揺れる", "夜が更ける"]
+            ][safe: firstIndex] ?? ["夜が更ける", "灯が揺れる", "月へ預ける"]
+        case .calm:
+            return [
+                ["明日が香る", "心ほどける", "袖にしまって"],
+                ["心ほどける", "明日が香る", "袖にしまって"],
+                ["袖にしまって", "心ほどける", "明日が香る"]
+            ][safe: firstIndex] ?? ["明日が香る", "心ほどける", "袖にしまって"]
+        case .anger:
+            return [
+                ["風に逃がして", "星を数える", "夜へほどいて"],
+                ["星を数える", "風に逃がして", "夜へほどいて"],
+                ["夜へほどいて", "星を数える", "風に逃がして"]
+            ][safe: firstIndex] ?? ["風に逃がして", "星を数える", "夜へほどいて"]
+        }
+    }
+
+    var lowerOptions: [String] {
+        lowerFirstOptions.enumerated().map { index, first in
+            "\(first) \(lowerSecondOptions(for: index)[0])"
         }
     }
 }
@@ -1298,72 +1347,138 @@ struct DiaryFormSection<Content: View>: View {
 
 struct TonePickerStep: View {
     @Binding var selectedTone: DiaryTone
-    @Binding var selectedLowerIndex: Int
+    @Binding var selectedLowerFirstIndex: Int
+    @Binding var selectedLowerSecondIndex: Int
 
     var body: some View {
         DiaryFormSection {
             StepSectionTitle(number: "2", title: "今のこころ")
 
-            Picker("今のこころ", selection: $selectedTone) {
+            HStack(spacing: 8) {
                 ForEach(DiaryTone.allCases, id: \.self) { tone in
-                    Text(tone.rawValue).tag(tone)
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            selectedTone = tone
+                            selectedLowerFirstIndex = 0
+                            selectedLowerSecondIndex = 0
+                        }
+                    } label: {
+                        ToneSegmentButton(tone: tone, isSelected: selectedTone == tone)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .pickerStyle(.segmented)
-            .tint(Color.meijiRed)
-            .onChange(of: selectedTone) { _, _ in
-                selectedLowerIndex = 0
-            }
+            .padding(4)
+            .background(Color(hex: 0xFFF9F2).opacity(0.86), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.retroGold.opacity(0.28), lineWidth: 0.8))
         }
     }
 }
 
-struct ToneStampButton: View {
+struct ToneSegmentButton: View {
     let tone: DiaryTone
     let isSelected: Bool
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             ZStack {
                 PlumBlossom()
-                    .fill(isSelected ? tone.tint : Color(hex: 0xFFF1DE).opacity(0.92))
-                    .frame(width: 44, height: 44)
+                    .fill(isSelected ? Color.retroPaper.opacity(0.96) : tone.tint.opacity(0.18))
+                    .frame(width: 22, height: 22)
                     .shadow(color: tone.tint.opacity(isSelected ? 0.24 : 0.08), radius: 8, x: 0, y: 4)
 
                 Text(tone.rawValue)
-                    .font(.system(size: 21, weight: .black, design: .serif))
-                    .foregroundStyle(isSelected ? Color.retroPaper : tone.tint)
+                    .font(UtakataFontStyle.retroMincho(size: 16, weight: .regular))
+                    .foregroundStyle(isSelected ? tone.tint : Color.primaryText.opacity(0.72))
             }
 
             Text(tone.title)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(isSelected ? tone.tint : Color.secondaryText)
+                .font(UtakataFontStyle.rounded(size: 10, weight: .semibold))
+                .foregroundStyle(isSelected ? Color.retroPaper : Color.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 9)
-        .background(isSelected ? Color(hex: 0xFFF8EA).opacity(0.78) : Color(hex: 0xFFF8EA).opacity(0.38), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? Color.retroGold.opacity(0.62) : Color.primaryText.opacity(0.09), lineWidth: 1))
+        .background(
+            isSelected
+            ? LinearGradient(colors: [Color.meijiRed, tone.tint], startPoint: .topLeading, endPoint: .bottomTrailing)
+            : LinearGradient(colors: [Color.clear, Color.clear], startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 11).stroke(isSelected ? Color.retroGold.opacity(0.58) : Color.primaryText.opacity(0.08), lineWidth: 0.8))
     }
 }
 
 struct LowerPhraseSlotStep: View {
     let tone: DiaryTone
-    @Binding var selectedIndex: Int
+    @Binding var selectedFirstIndex: Int
+    @Binding var selectedSecondIndex: Int
+
+    private var secondOptions: [String] {
+        tone.lowerSecondOptions(for: selectedFirstIndex)
+    }
 
     var body: some View {
         DiaryFormSection {
-            StepSectionTitle(number: "3", title: "下の句を選ぶ")
+            StepSectionTitle(number: "3", title: "下の句を詠む")
+
+            PhraseChoiceList(
+                title: "前半の七音",
+                subtitle: "上の句に続く、気持ちの入口",
+                options: tone.lowerFirstOptions,
+                selectedIndex: $selectedFirstIndex,
+                accent: tone.tint
+            ) {
+                selectedSecondIndex = 0
+            }
+
+            PhraseChoiceList(
+                title: "後半の七音",
+                subtitle: "余韻をそっと結ぶ",
+                options: secondOptions,
+                selectedIndex: $selectedSecondIndex,
+                accent: tone.tint
+            )
+        }
+    }
+}
+
+struct PhraseChoiceList: View {
+    let title: String
+    let subtitle: String
+    let options: [String]
+    @Binding var selectedIndex: Int
+    let accent: Color
+    var onSelect: () -> Void = {}
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(UtakataFontStyle.rounded(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.primaryText)
+                Text(subtitle)
+                    .font(UtakataFontStyle.rounded(size: 11, weight: .regular))
+                    .foregroundStyle(Color.secondaryText)
+                Spacer(minLength: 0)
+            }
 
             VStack(spacing: 0) {
-                ForEach(Array(tone.lowerOptions.enumerated()), id: \.offset) { index, phrase in
+                ForEach(Array(options.enumerated()), id: \.offset) { index, phrase in
                     Button {
                         withAnimation(.easeInOut(duration: 0.18)) {
                             selectedIndex = index
+                            onSelect()
                         }
                     } label: {
                         HStack(spacing: 12) {
+                            PlumBlossom()
+                                .fill(selectedIndex == index ? accent.opacity(0.82) : accent.opacity(0.16))
+                                .frame(width: 17, height: 17)
+
                             Text(phrase)
-                                .font(.body)
+                                .font(UtakataFontStyle.rounded(size: 15, weight: .semibold))
                                 .foregroundStyle(Color.primaryText)
                                 .multilineTextAlignment(.leading)
                             Spacer()
@@ -1373,15 +1488,16 @@ struct LowerPhraseSlotStep: View {
                                     .foregroundStyle(Color.meijiRed)
                             }
                         }
-                        .padding(.vertical, 14)
+                        .padding(.vertical, 13)
                         .padding(.horizontal, 14)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
 
-                    if index < tone.lowerOptions.count - 1 {
+                    if index < options.count - 1 {
                         Divider()
-                            .padding(.leading, 14)
+                            .overlay(Color.retroGold.opacity(0.18))
+                            .padding(.leading, 42)
                     }
                 }
             }
@@ -1444,13 +1560,13 @@ struct CompletedTankaStep: View {
                     accent: mood.accent,
                     photoData: photoData
                 )
-                .frame(width: 232, height: 358)
-                .rotation3DEffect(.degrees(didOpen ? 0 : -78), axis: (x: 0, y: 1, z: 0), anchor: .leading, perspective: 0.72)
+                .frame(width: 252, height: 386)
                 .scaleEffect(isStoring ? 0.42 : 1)
                 .offset(x: isStoring ? 92 : 0, y: isStoring ? 142 : 0)
                 .rotationEffect(.degrees(isStoring ? 8 : 0))
-                .opacity(didOpen ? (isStoring ? 0.28 : 1) : 0.2)
-                .animation(.spring(response: 0.62, dampingFraction: 0.82), value: didOpen)
+                .opacity(didOpen ? (isStoring ? 0.28 : 1) : 0)
+                .scaleEffect(didOpen ? 1 : 0.94)
+                .animation(.spring(response: 0.58, dampingFraction: 0.86), value: didOpen)
                 Spacer()
             }
 
@@ -1476,9 +1592,22 @@ struct TankaOmikujiPreviewCard: View {
     let lowerPhrase: String
     let accent: Color
     let photoData: Data?
+    @AppStorage("utakataNickname") private var nickname = ""
 
     private var allLines: [String] {
         Array(upperPhrase.prefix(3)) + lowerPhrase.tankaLowerLines()
+    }
+
+    private var authorName: String {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "わたし" : trimmed
+    }
+
+    private var cardDateText: String {
+        let calendar = Calendar(identifier: .gregorian)
+        let month = calendar.component(.month, from: .now)
+        let day = calendar.component(.day, from: .now)
+        return "\(Self.japaneseNumber(month))月\(Self.japaneseNumber(day))日"
     }
 
     private var selectedImage: Image? {
@@ -1494,40 +1623,45 @@ struct TankaOmikujiPreviewCard: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(hex: 0xFFF5EC),
-                    Color(hex: 0xF5DCE5),
-                    Color(hex: 0xD8ECF2),
-                    accent.opacity(0.14)
+                    Color(hex: 0xFFF9F2),
+                    Color(hex: 0xF4E4CB),
+                    accent.opacity(0.12)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
             WashiPattern()
-                .opacity(0.24)
+                .opacity(0.34)
 
             TaishoCheckPattern(color: Color.meijiRed.opacity(0.025), tile: 24)
 
-            OrnateOmikujiBorder()
-                .stroke(Color.retroGold.opacity(0.58), lineWidth: 1)
-                .padding(10)
-
-            OrnateOmikujiBorder()
-                .stroke(Color.meijiRed.opacity(0.22), lineWidth: 0.8)
-                .padding(18)
-
             VStack(spacing: 12) {
+                Text(cardDateText)
+                    .font(UtakataFontStyle.handLetter(size: 13, weight: .regular))
+                    .foregroundStyle(Color.primaryText.opacity(0.58))
+                    .padding(.top, 18)
+
                 if let selectedImage {
                     RetroPhotoFrame(image: selectedImage)
-                        .frame(height: 118)
-                        .padding(.horizontal, 27)
-                        .padding(.top, 46)
+                        .frame(height: 126)
+                        .padding(.horizontal, 24)
+                        .shadow(color: .black.opacity(0.10), radius: 9, x: 0, y: 6)
                 } else {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(hex: 0xFFF9F2).opacity(0.44))
-                        .frame(height: 56)
-                        .padding(.horizontal, 42)
-                        .padding(.top, 58)
+                        .fill(Color(hex: 0xFFF9F2).opacity(0.56))
+                        .overlay(
+                            VStack(spacing: 5) {
+                                PlumBlossom()
+                                    .fill(accent.opacity(0.24))
+                                    .frame(width: 20, height: 20)
+                                Text("今日の余白")
+                                    .font(UtakataFontStyle.handLetter(size: 12, weight: .regular))
+                                    .foregroundStyle(Color.secondaryText.opacity(0.72))
+                            }
+                        )
+                        .frame(height: 74)
+                        .padding(.horizontal, 38)
                 }
 
                 HStack(alignment: .top, spacing: 8) {
@@ -1541,30 +1675,71 @@ struct TankaOmikujiPreviewCard: View {
                         )
                     }
                 }
-                .frame(maxHeight: .infinity, alignment: .center)
-                .padding(.horizontal, 30)
-                .padding(.bottom, 30)
-            }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(Color(hex: 0xFFF9F2).opacity(0.66), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.retroGold.opacity(0.18), lineWidth: 0.8))
+                .shadow(color: Color(hex: 0xFFF9F2).opacity(0.75), radius: 1.2, x: 0, y: 0)
+                .padding(.horizontal, 20)
 
-            VStack {
-                Text("うたかた日記")
-                    .font(UtakataFontStyle.retroMincho(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.primaryText.opacity(0.8))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(Color(hex: 0xFFF9F2).opacity(0.82), in: Capsule())
-                    .overlay(Capsule().stroke(Color.retroGold.opacity(0.36), lineWidth: 0.8))
-                Spacer()
+                Spacer(minLength: 0)
+
+                HStack(spacing: 8) {
+                    Rectangle()
+                        .fill(Color.retroGold.opacity(0.32))
+                        .frame(width: 28, height: 0.8)
+                    Text("詠み人：\(authorName)")
+                        .font(UtakataFontStyle.retroMincho(size: 11, weight: .regular))
+                        .foregroundStyle(Color.primaryText.opacity(0.62))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Rectangle()
+                        .fill(Color.retroGold.opacity(0.32))
+                        .frame(width: 28, height: 0.8)
+                }
+                .padding(.bottom, 18)
             }
-            .padding(.top, 18)
+            .padding(.horizontal, 4)
 
             MemoryCornerRibbons(color: accent)
+                .padding(12)
+
+            OrnateOmikujiBorder()
+                .stroke(Color.retroGold.opacity(0.58), lineWidth: 1)
                 .padding(10)
+
+            OrnateOmikujiBorder()
+                .stroke(Color.meijiRed.opacity(0.20), lineWidth: 0.8)
+                .padding(18)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.meijiRed.opacity(0.25), lineWidth: 1.1))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.retroGold.opacity(0.48), lineWidth: 0.8).padding(6))
-        .shadow(color: accent.opacity(0.18), radius: 16, x: 0, y: 10)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.meijiRed.opacity(0.20), lineWidth: 1.0))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.retroGold.opacity(0.44), lineWidth: 0.8).padding(6))
+        .shadow(color: .black.opacity(0.13), radius: 22, x: 0, y: 14)
+        .shadow(color: accent.opacity(0.12), radius: 18, x: 0, y: 8)
+    }
+
+    private static func japaneseNumber(_ value: Int) -> String {
+        let digits = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
+        switch value {
+        case 1...9:
+            return digits[value]
+        case 10:
+            return "十"
+        case 11...19:
+            return "十\(digits[value - 10])"
+        case 20:
+            return "二十"
+        case 21...29:
+            return "二十\(digits[value - 20])"
+        case 30:
+            return "三十"
+        case 31:
+            return "三十一"
+        default:
+            return "\(value)"
+        }
     }
 }
 
@@ -1850,66 +2025,61 @@ struct CustomLowerPhraseField: View {
     }
 }
 
-struct DiarySourcePicker: View {
+struct DiaryPhotoMenuButton: View {
     let photoData: Data?
     @Binding var selectedItem: PhotosPickerItem?
     let onCameraTap: () -> Void
 
-    private var selectedImage: Image? {
-        guard
-            let photoData,
-            let uiImage = UIImage(data: photoData)
-        else { return nil }
-
-        return Image(uiImage: uiImage)
-    }
-
     var body: some View {
-        DiaryFormSection {
-            StepSectionTitle(number: "0", title: "写真")
-
-            VStack(spacing: 13) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color(hex: 0xFFF9F2).opacity(0.78))
-                    TaishoCheckPattern(color: Color.meijiBlue.opacity(0.05), tile: 20)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-                    if let selectedImage {
-                        RetroPhotoFrame(image: selectedImage)
-                            .padding(10)
-                    } else {
-                        VStack(spacing: 11) {
-                            Image(systemName: "photo.badge.plus")
-                                .font(.system(size: 34, weight: .semibold))
-                                .foregroundStyle(Color.meijiRed)
-                            Text("今日の一枚を入れる")
-                                .font(.headline.weight(.semibold))
-                                .foregroundStyle(Color.primaryText)
-                            Text("撮るか、ライブラリから選べます")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(Color.secondaryText)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-                .frame(height: 226)
-                .clipped()
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.34), lineWidth: 0.8))
-
-                HStack(spacing: 12) {
-                    Button(action: onCameraTap) {
-                        SourceActionTile(title: photoData == nil ? "写真を撮る" : "撮り直す", systemImage: "camera.fill")
-                    }
-                    .buttonStyle(.plain)
-
-                    PhotosPicker(selection: $selectedItem, matching: .images) {
-                        SourceActionTile(title: photoData == nil ? "ライブラリから選択" : "写真を変更", systemImage: "photo.on.rectangle")
-                    }
-                    .buttonStyle(.plain)
-                }
+        Menu {
+            Button(action: onCameraTap) {
+                Label(photoData == nil ? "写真を撮る" : "撮り直す", systemImage: "camera.fill")
             }
+
+            PhotosPicker(selection: $selectedItem, matching: .images) {
+                Label(photoData == nil ? "ライブラリから選ぶ" : "ライブラリから変更", systemImage: "photo.on.rectangle")
+            }
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: photoData == nil ? "camera.fill" : "checkmark.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(photoData == nil ? Color.meijiRed : Color.retroPaper)
+                    .frame(width: 43, height: 43)
+                    .background(
+                        photoData == nil
+                        ? LinearGradient(colors: [Color(hex: 0xFFF9F2), Color.retroPaper], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        : LinearGradient(colors: [Color.meijiRed, Color.retroRose], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: Circle()
+                    )
+                    .overlay(Circle().stroke(Color.meijiRed.opacity(0.28), lineWidth: 0.9))
+                    .overlay(Circle().stroke(Color.retroGold.opacity(0.38), lineWidth: 0.7).padding(4))
+                    .shadow(color: Color.meijiRed.opacity(0.12), radius: 8, x: 0, y: 4)
+
+                PlumBlossom()
+                    .fill(Color.retroGold.opacity(photoData == nil ? 0.72 : 0.95))
+                    .frame(width: 9, height: 9)
+                    .offset(x: -3, y: 3)
+            }
+            .accessibilityLabel(photoData == nil ? "写真を追加" : "写真を変更")
         }
+        .menuStyle(.button)
+    }
+}
+
+struct LetterPaperDivider: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(LinearGradient(colors: [.clear, Color.meijiRed.opacity(0.24)], startPoint: .leading, endPoint: .trailing))
+                .frame(height: 0.8)
+            PlumBlossom()
+                .fill(Color.retroGold.opacity(0.58))
+                .frame(width: 11, height: 11)
+            Rectangle()
+                .fill(LinearGradient(colors: [Color.meijiRed.opacity(0.24), .clear], startPoint: .leading, endPoint: .trailing))
+                .frame(height: 0.8)
+        }
+        .padding(.horizontal, 6)
     }
 }
 
@@ -1973,28 +2143,6 @@ struct StepSectionTitle: View {
                 .font(.system(size: 20, weight: .semibold, design: .serif))
                 .foregroundStyle(Color.primaryText)
         }
-    }
-}
-
-struct SourceActionTile: View {
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.headline.weight(.bold))
-            Text(title)
-                .font(.subheadline.weight(.bold))
-        }
-        .foregroundStyle(Color.primaryText)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(Color.retroPaper.opacity(0.72), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .stroke(Color.primaryText.opacity(0.28), lineWidth: 1)
-        )
     }
 }
 

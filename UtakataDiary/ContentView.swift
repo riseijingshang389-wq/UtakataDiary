@@ -46,8 +46,8 @@ enum AppTab: String, CaseIterable {
 
     var systemImage: String {
         switch self {
-        case .today: return "house"
-        case .memory: return "books.vertical"
+        case .today: return "house.fill"
+        case .memory: return "books.vertical.fill"
         }
     }
 
@@ -172,26 +172,32 @@ struct MainTabView: View {
     @State private var didOfferOmikujiThisActivation = false
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             AppBackground()
 
-            Group {
-                switch selectedTab {
-                case .today:
-                    TodayView(savedCards: $savedCards, onOpenSettings: openSettings) { date in
-                        lastDiaryCreatedAt = date.timeIntervalSince1970
-                    }
-                case .memory:
-                    MemoryView(
-                        cards: savedCards,
-                        onOpenSettings: openSettings,
-                        onCreateDiary: addDiaryCard
-                    )
+            TabView(selection: $selectedTab) {
+                TodayView(savedCards: $savedCards, onOpenSettings: openSettings) { date in
+                    lastDiaryCreatedAt = date.timeIntervalSince1970
                 }
-            }
-            .safeAreaPadding(.bottom, 136)
+                .tabItem {
+                    Label(AppTab.today.tabTitle, systemImage: AppTab.today.systemImage)
+                }
+                .tag(AppTab.today)
 
-            CustomTabBar(selectedTab: $selectedTab)
+                MemoryView(
+                    cards: savedCards,
+                    onOpenSettings: openSettings,
+                    onCreateDiary: addDiaryCard
+                )
+                .tabItem {
+                    Label(AppTab.memory.tabTitle, systemImage: AppTab.memory.systemImage)
+                }
+                .tag(AppTab.memory)
+            }
+            .tint(Color.meijiRed)
+            .toolbarBackground(Color(hex: 0xFFF9F2).opacity(0.96), for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
+            .toolbarColorScheme(.light, for: .tabBar)
         }
         .onAppear(perform: updateMorningOmikujiPresentation)
         .onChange(of: scenePhase) { _, newPhase in
