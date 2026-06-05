@@ -61,11 +61,13 @@ enum CardMood: String, CaseIterable, Hashable, Codable {
 
 enum AppTab: String, CaseIterable {
     case today = "日記"
+    case dummy = "作成"
     case memory = "メモリー"
 
     var systemImage: String {
         switch self {
         case .today: return "house.fill"
+        case .dummy: return "plus"
         case .memory: return "books.vertical.fill"
         }
     }
@@ -73,6 +75,7 @@ enum AppTab: String, CaseIterable {
     var tabTitle: String {
         switch self {
         case .today: return "ホーム"
+        case .dummy: return ""
         case .memory: return "メモリー"
         }
     }
@@ -206,7 +209,13 @@ struct MainTabView: View {
                     Label(AppTab.today.tabTitle, systemImage: AppTab.today.systemImage)
                 }
                 .tag(AppTab.today)
-
+                
+                Color.clear
+                    .tabItem {
+                        Label(AppTab.dummy.tabTitle, systemImage: AppTab.dummy.systemImage)
+                    }
+                    .tag(AppTab.dummy)
+                
                 MemoryView(
                     cards: savedCards,
                     showsCreateButton: false,
@@ -222,13 +231,6 @@ struct MainTabView: View {
             .toolbarBackground(Color(hex: 0xFFF9F2).opacity(0.96), for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
             .toolbarColorScheme(.light, for: .tabBar)
-
-            CentralDiaryCreateTabButton {
-                showingComposer = true
-            }
-            .padding(.bottom, 24)
-            .zIndex(10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
         .onAppear {
             updateMorningOmikujiPresentation()
@@ -240,6 +242,12 @@ struct MainTabView: View {
                 syncFromCloudIfNeeded(uploadLocalAfterFetch: false)
             } else {
                 didOfferOmikujiThisActivation = false
+            }
+        }
+        .onChange(of: selectedTab) { old, new in
+            if new == .dummy {
+                selectedTab = old
+                showingComposer = true
             }
         }
         .onChange(of: iCloudSyncEnabled) { _, isEnabled in
