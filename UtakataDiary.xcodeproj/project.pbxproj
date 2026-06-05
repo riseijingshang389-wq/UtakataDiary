@@ -127,7 +127,7 @@
 				};
 			};
 			buildConfigurationList = 8A7F5B752C0A000100000001 /* Build configuration list for PBXProject "UtakataDiary" */;
-			developmentRegion = en;
+			developmentRegion = ja;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
