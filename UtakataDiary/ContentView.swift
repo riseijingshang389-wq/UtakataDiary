@@ -231,6 +231,7 @@ struct MainTabView: View {
             .toolbarBackground(Color(hex: 0xFFF9F2).opacity(0.96), for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
             .toolbarColorScheme(.light, for: .tabBar)
+
         }
         .onAppear {
             updateMorningOmikujiPresentation()
@@ -337,50 +338,6 @@ struct MainTabView: View {
         }
 
         savedCards = cardsByID.values.sorted { $0.date > $1.date }
-    }
-}
-
-struct CentralDiaryCreateTabButton: View {
-    let action: () -> Void
-    @GestureState private var isPressed = false
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.meijiRed, Color(hex: 0xA64A57)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 60, height: 60)
-                    .overlay(Circle().stroke(Color(hex: 0xFFF9F2).opacity(0.92), lineWidth: 3))
-                    .overlay(Circle().stroke(Color.retroGold.opacity(0.62), lineWidth: 0.9).padding(6))
-
-                Image(systemName: "plus")
-                    .font(.system(size: 25, weight: .semibold))
-                    .foregroundStyle(Color(hex: 0xFFF9F2))
-
-                PlumBlossom()
-                    .fill(Color.retroGold.opacity(0.82))
-                    .frame(width: 10, height: 10)
-                    .offset(x: 18, y: -18)
-            }
-            .scaleEffect(isPressed ? 0.92 : 1)
-            .shadow(color: Color.meijiRed.opacity(isPressed ? 0.10 : 0.20), radius: isPressed ? 7 : 14, x: 0, y: isPressed ? 4 : 8)
-            .shadow(color: .black.opacity(isPressed ? 0.05 : 0.09), radius: isPressed ? 5 : 10, x: 0, y: isPressed ? 3 : 6)
-            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isPressed)
-        }
-        .buttonStyle(.plain)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .updating($isPressed) { _, state, _ in
-                    state = true
-                }
-        )
-        .accessibilityLabel("日記を作成")
     }
 }
 
@@ -982,8 +939,8 @@ struct PoemCardView: View {
             let edge = compact ? proxy.size.width * 0.045 : proxy.size.width * 0.055
             let bottom = compact ? proxy.size.height * 0.15 : proxy.size.height * 0.17
             let photoHeight = proxy.size.height - bottom - edge * 1.4
-            let textInset = heroPreview ? 16.0 : (compact ? 9.0 : 14.0)
-            let poemPanelWidth = min(proxy.size.width * (heroPreview ? 0.45 : (compact ? 0.42 : 0.38)), heroPreview ? 118 : (compact ? 96 : 126))
+            let textInset = heroPreview ? 18.0 : (compact ? 9.0 : 14.0)
+            let poemPanelWidth = min(proxy.size.width * (heroPreview ? 0.42 : (compact ? 0.42 : 0.38)), heroPreview ? 112 : (compact ? 96 : 126))
             let poemPanelHeight = max(56, photoHeight - textInset * 2)
 
             ZStack {
@@ -1053,10 +1010,10 @@ struct PoemCardView: View {
                                 accent: mood.accent,
                                 compact: compact
                             )
-                            .padding(.horizontal, compact ? 3 : 5)
-                            .padding(.vertical, compact ? 5 : 7)
+                            .padding(.horizontal, heroPreview ? 7 : (compact ? 3 : 5))
+                            .padding(.vertical, heroPreview ? 9 : (compact ? 5 : 7))
                         }
-                        .frame(width: poemPanelWidth, height: poemPanelHeight, alignment: .top)
+                        .frame(width: poemPanelWidth, height: poemPanelHeight, alignment: .center)
                         .overlay(
                             RoundedRectangle(cornerRadius: compact ? 8 : 11, style: .continuous)
                                 .stroke(Color.retroGold.opacity(0.40), lineWidth: 0.8)

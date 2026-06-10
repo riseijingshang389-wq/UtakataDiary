@@ -1,4 +1,89 @@
 import SwiftUI
+import AVFoundation
+
+final class OmikujiSoundPlayer {
+    static let shared = OmikujiSoundPlayer()
+
+    private let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    private let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
+
+    private init() {
+        engine.attach(player)
+        engine.connect(player, to: engine.mainMixerNode, format: format)
+        engine.prepare()
+    }
+
+    func playDrawSound() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+            if !engine.isRunning {
+                try engine.start()
+            }
+        } catch {
+            return
+        }
+
+        if player.isPlaying {
+            player.stop()
+        }
+
+        guard let buffer = makeDrawSoundBuffer() else { return }
+        player.scheduleBuffer(buffer, at: nil, options: [])
+        player.play()
+    }
+
+    private func makeDrawSoundBuffer() -> AVAudioPCMBuffer? {
+        let sampleRate = format.sampleRate
+        let duration = 0.92
+        let frameCount = Int(sampleRate * duration)
+        guard
+            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frameCount)),
+            let channel = buffer.floatChannelData?[0]
+        else {
+            return nil
+        }
+
+        buffer.frameLength = AVAudioFrameCount(frameCount)
+
+        for frame in 0..<frameCount {
+            let time = Double(frame) / sampleRate
+            var sample: Float = 0
+
+            for burstStart in [0.00, 0.075, 0.15, 0.245, 0.34, 0.46] {
+                if time >= burstStart {
+                    let age = time - burstStart
+                    let envelope = Float(exp(-42 * age))
+                    let noise = Float.random(in: -1...1)
+                    sample += noise * envelope * 0.045
+                }
+            }
+
+            for chime in [
+                (0.00, 1320.0, 0.13),
+                (0.055, 1760.0, 0.10),
+                (0.13, 1480.0, 0.12),
+                (0.225, 1980.0, 0.09),
+                (0.33, 1580.0, 0.11),
+                (0.455, 2240.0, 0.075)
+            ] {
+                if time >= chime.0 {
+                    let age = time - chime.0
+                    let envelope = Float(exp(-7.8 * age))
+                    let fundamental = Float(sin(2 * Double.pi * chime.1 * age))
+                    let overtone = Float(sin(2 * Double.pi * chime.1 * 2.03 * age)) * 0.38
+                    sample += (fundamental + overtone) * envelope * Float(chime.2)
+                }
+            }
+
+            let fadeIn = min(Float(time / 0.018), 1)
+            let fadeOut = min(Float((duration - time) / 0.18), 1)
+            channel[frame] = max(-0.42, min(0.42, sample * fadeIn * fadeOut))
+        }
+
+        return buffer
+    }
+}
 
 struct FortuneView: View {
     @State private var showingQuiz = false
@@ -46,6 +131,7 @@ struct MorningOmikujiDrawView: View {
                     stickOffset: stickOffset,
                     onSkip: onClose
                 ) {
+                    OmikujiSoundPlayer.shared.playDrawSound()
                     isShaking.toggle()
                     stickOffset = -18
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
@@ -457,43 +543,47 @@ struct OmikujiResultScreen: View {
     var body: some View {
         GeometryReader { proxy in
             let cardWidth = min(proxy.size.width * 0.58, 226)
-            let cardHeight = min(max(proxy.size.height - 174, 500), 636)
+            let adaptiveCardHeightLimit = max(CGFloat(636), proxy.size.width * 1.2)
+            let cardHeight = min(max(proxy.size.height - 174, 500), adaptiveCardHeightLimit)
 
             ZStack {
                 OmikujiPreDrawFantasyLayer()
                     .opacity(0.28)
 
-                VStack(spacing: 0) {
-                    OmikujiHeader()
-                        .scaleEffect(0.82)
-                        .frame(height: 74)
-                        .padding(.top, 8)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        OmikujiHeader()
+                            .scaleEffect(0.82)
+                            .frame(height: 74)
+                            .padding(.top, 8)
 
-                    ZStack {
-                        PassiveLogOmikujiCard(fortune: fortune)
-                            .frame(width: cardWidth, height: cardHeight)
+                        ZStack {
+                            PassiveLogOmikujiCard(fortune: fortune)
+                                .frame(width: cardWidth, height: cardHeight)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: cardHeight + 10)
+
+                        Spacer(minLength: 8)
+
+                        Button(action: onClose) {
+                            OmikujiStartDayButton()
+                        }
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 0)
+                                .updating($isPressingStart) { _, state, _ in
+                                    state = true
+                                }
+                        )
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 22)
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: cardHeight + 10)
-
-                    Spacer(minLength: 8)
-
-                    Button(action: onClose) {
-                        OmikujiStartDayButton()
-                    }
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 0)
-                            .updating($isPressingStart) { _, state, _ in
-                                state = true
-                            }
-                    )
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 22)
+                    .frame(minHeight: proxy.size.height)
                 }
-                .frame(width: proxy.size.width, height: proxy.size.height)
+                .frame(maxWidth: .infinity)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
-            .clipped()
         }
     }
 }
@@ -775,16 +865,16 @@ struct PassiveLogOmikujiCard: View {
                         .padding(.vertical, proxy.size.height * 0.014)
 
                     OmikujiPaperExplanation(lines: fortune.explanationLines)
-                        .frame(height: proxy.size.height * 0.34)
+                        .frame(height: proxy.size.height * 0.30)
 
                     OmikujiPaperSeparator(symbol: "◇ ◇ ◇ ◇")
                         .padding(.vertical, proxy.size.height * 0.014)
 
-                OmikujiPaperLuckList(item: fortune.item, action: fortune.action, place: fortune.place)
+                    OmikujiPaperLuckList(item: fortune.item, action: fortune.action, place: fortune.place)
                         .frame(maxHeight: .infinity)
                 }
-                .padding(.top, 28)
-                .padding(.bottom, 16)
+                .padding(.top, 20)
+                .padding(.bottom, 24)
                 .padding(.horizontal, 16)
 
                 OmikujiPaperCornerMarks()
@@ -837,16 +927,16 @@ struct OmikujiPaperFortune: View {
         HStack(alignment: .center, spacing: 16) {
             Rectangle()
                 .fill(Color(hex: 0x2C211C).opacity(0.66))
-                .frame(width: 1, height: 94)
+                .frame(width: 1, height: 88)
 
-            VerticalText(text, spacing: 5.4)
-                .font(UtakataFontStyle.retroMincho(size: 31, weight: .semibold))
+            VerticalText(text, spacing: 4.2)
+                .font(UtakataFontStyle.retroMincho(size: 28, weight: .semibold))
                 .foregroundStyle(Color(hex: 0x11100E))
                 .frame(width: 48)
 
             Rectangle()
                 .fill(Color(hex: 0x2C211C).opacity(0.66))
-                .frame(width: 1, height: 94)
+                .frame(width: 1, height: 88)
         }
         .padding(.top, 8)
         .overlay(alignment: .topTrailing) {
@@ -891,20 +981,20 @@ struct OmikujiPaperExplanation: View {
         HStack(alignment: .top, spacing: 12) {
             HStack(alignment: .top, spacing: 8) {
                 ForEach(lines.reversed(), id: \.self) { line in
-                    VerticalText(line, spacing: 3.1)
-                        .font(UtakataFontStyle.retroMincho(size: 11.1, weight: .medium))
+                    VerticalText(line, spacing: 2.8)
+                        .font(UtakataFontStyle.retroMincho(size: 10.7, weight: .medium))
                         .foregroundStyle(Color.primaryText)
                         .frame(width: 17, alignment: .top)
                         .frame(maxHeight: .infinity, alignment: .top)
                 }
             }
-            .frame(height: 174, alignment: .top)
+            .frame(height: 154, alignment: .top)
 
-            VerticalText("今日の解説", spacing: 3.0)
-                .font(UtakataFontStyle.retroMincho(size: 10.2, weight: .bold))
+            VerticalText("今日の解説", spacing: 2.8)
+                .font(UtakataFontStyle.retroMincho(size: 9.9, weight: .bold))
                 .foregroundStyle(Color.meijiRed)
                 .frame(width: 18)
-                .frame(height: 130, alignment: .top)
+                .frame(height: 118, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.top, 3)
@@ -926,7 +1016,7 @@ struct OmikujiPaperLuckList: View {
                 .font(UtakataFontStyle.retroMincho(size: 10.1, weight: .bold))
                 .foregroundStyle(Color.meijiRed)
                 .frame(width: 18)
-                .frame(height: 104, alignment: .top)
+                .frame(height: 118, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.top, 7)
@@ -943,15 +1033,15 @@ struct OmikujiPaperLuckItem: View {
                 .font(UtakataFontStyle.retroMincho(size: 10.8, weight: .semibold))
                 .foregroundStyle(Color.primaryText)
                 .frame(width: 17)
-                .frame(height: 104, alignment: .top)
+                .frame(height: 118, alignment: .top)
 
             VerticalText(title, spacing: 2.0)
                 .font(UtakataFontStyle.retroMincho(size: 7.7, weight: .bold))
                 .foregroundStyle(Color(hex: 0x7C423B))
                 .frame(width: 11)
-                .frame(height: 104, alignment: .top)
+                .frame(height: 118, alignment: .top)
         }
-        .frame(width: 36, height: 104, alignment: .top)
+        .frame(width: 36, height: 118, alignment: .top)
     }
 }
 
