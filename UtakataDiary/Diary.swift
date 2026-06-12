@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import ImageIO
 import CoreLocation
 #if canImport(WeatherKit)
 import WeatherKit
@@ -12,7 +13,10 @@ import MusicKit
 struct TodayView: View {
     @Binding var savedCards: [DiaryCard]
     var showsCreateButton = true
+    var canDrawMikuji = false
+    var mikujiStreak = 0
     let onOpenSettings: () -> Void
+    var onOpenMikuji: () -> Void = {}
     let onDiaryCreated: (Date) -> Void
     @State private var showingComposer = false
     @State private var selectedDate = Date.now
@@ -40,7 +44,10 @@ struct TodayView: View {
                         ScreenHeaderWithSettings(
                             title: "日記",
                             subtitle: "カレンダー",
-                            onOpenSettings: onOpenSettings
+                            onOpenSettings: onOpenSettings,
+                            canDrawMikuji: canDrawMikuji,
+                            mikujiStreak: mikujiStreak,
+                            onOpenMikuji: onOpenMikuji
                         )
                             .padding(.top, 4)
 
@@ -76,6 +83,7 @@ struct TodayView: View {
             .sheet(isPresented: $showingComposer) {
                 DiaryComposerView { card in
                     savedCards.insert(card, at: 0)
+                    LatestTankaWidgetStore.save(date: card.date, upperPhrase: card.upperPhrase, lowerPhrase: card.lowerPhrase)
                     selectedDate = card.date
                     visibleMonth = card.date
                     onDiaryCreated(card.date)
@@ -381,6 +389,7 @@ struct LegacyDiaryHome: View {
             .sheet(isPresented: $showingComposer) {
                 DiaryComposerView { card in
                     savedCards.insert(card, at: 0)
+                    LatestTankaWidgetStore.save(date: card.date, upperPhrase: card.upperPhrase, lowerPhrase: card.lowerPhrase)
                     onDiaryCreated(card.date)
                 }
                 .presentationDetents([.large])
@@ -697,6 +706,7 @@ struct DiaryComposerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var photoData: Data?
+    @State private var photoTakenAt: Date?
     @State private var showingCamera = false
     @State private var showingPhotoLibrary = false
     @State private var mode = DiaryComposerMode.ai
@@ -713,6 +723,7 @@ struct DiaryComposerView: View {
     @State private var sparkleBurst = false
     @State private var ambientContext = AmbientAIContext()
     @State private var composerNotice: ComposerNotice?
+    @State private var generationSeed = UUID()
 
     private var aiSuggestionRequest: AISuggestionRequest {
         AISuggestionRequest(
@@ -720,7 +731,9 @@ struct DiaryComposerView: View {
             factInput: factText,
             mood: selectedTone,
             weatherKeyword: ambientContext.weatherKeyword,
-            musicMood: ambientContext.musicMood
+            musicMood: ambientContext.musicMood,
+            photoTakenAt: photoTakenAt,
+            generationSeed: generationSeed
         )
     }
 
@@ -917,6 +930,7 @@ struct DiaryComposerView: View {
             Task {
                 do {
                     guard let data = try await newItem?.loadTransferable(type: Data.self) else { return }
+                    let takenAt = PhotoCaptureDateReader.captureDate(from: data)
                     guard let resizedData = UIImage.diaryStorageJPEGData(from: data) else {
                         await MainActor.run {
                             showComposerNotice(
@@ -931,6 +945,8 @@ struct DiaryComposerView: View {
                     await MainActor.run {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             photoData = resizedData
+                            photoTakenAt = takenAt
+                            generationSeed = UUID()
                             composerNotice = nil
                         }
                     }
@@ -948,6 +964,8 @@ struct DiaryComposerView: View {
         .fullScreenCover(isPresented: $showingCamera) {
             CameraPicker { image in
                 photoData = image.diaryStorageJPEGData()
+                photoTakenAt = Date()
+                generationSeed = UUID()
                 showingCamera = false
             } onCancel: {
                 showingCamera = false
@@ -1223,11 +1241,7 @@ enum DiaryTone: String, CaseIterable, Hashable {
 
 enum DiaryFactPhraseGenerator {
     static func upperPhrase(request: AISuggestionRequest) -> [String] {
-        upperPhrase(
-            from: request.factInput,
-            tone: request.mood,
-            photoDescription: request.photoDescription
-        )
+        DynamicTankaPhraseEngine.generate(request: request).upperPhrase
     }
 
     static func upperPhrase(from fact: String, tone: DiaryTone) -> [String] {
@@ -1235,83 +1249,217 @@ enum DiaryFactPhraseGenerator {
     }
 
     static func upperPhrase(from fact: String, tone: DiaryTone, photoDescription: String?) -> [String] {
-        let cleaned = fact
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: "　", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let request = AISuggestionRequest(
+            photoDescription: photoDescription,
+            factInput: fact,
+            mood: tone,
+            weatherKeyword: "未取得",
+            musicMood: "未取得",
+            photoTakenAt: nil,
+            generationSeed: UUID()
+        )
+        return DynamicTankaPhraseEngine.generate(request: request).upperPhrase
+    }
+}
 
-        guard !cleaned.isEmpty else {
-            return ["ひとことを", "入れるだけで", "札になる"]
+struct DynamicTankaSuggestion {
+    let upperPhrase: [String]
+    let lowerOptions: [String]
+}
+
+enum DynamicTankaPhraseEngine {
+    private enum TimeTone: String {
+        case morning
+        case daytime
+        case evening
+        case night
+    }
+
+    private struct PhraseBank {
+        let upperPhrases: [String]
+        let middlePhrases: [String]
+        let lowerPhrases: [String]
+        let lowerFirst: [String]
+        let lowerSecond: [String]
+    }
+
+    static func generate(request: AISuggestionRequest) -> DynamicTankaSuggestion {
+        let timeTone = timeTone(from: request.photoTakenAt ?? Date())
+        let source = [
+            request.photoDescription ?? "",
+            request.factInput,
+            request.weatherKeyword,
+            request.musicMood,
+            request.mood.rawValue,
+            request.generationSeed.uuidString,
+            timeTone.rawValue
+        ].joined(separator: "|")
+        let seed = stableSeed(from: source)
+        let keyword = sceneKeyword(from: request)
+        let bank = phraseBank(for: timeTone, mood: request.mood, keyword: keyword)
+
+        let upper = pick(from: bank.upperPhrases, seed: seed, salt: 1)
+        let middle = pick(from: bank.middlePhrases, seed: seed, salt: 2)
+        let lower = pick(from: bank.lowerPhrases, seed: seed, salt: 3)
+
+        let lowerOptions = (0..<3).map { index in
+            let first = pick(from: bank.lowerFirst, seed: seed, salt: 10 + index * 2)
+            let second = pick(from: bank.lowerSecond, seed: seed, salt: 11 + index * 2)
+            return "\(first) \(second)"
         }
 
-        let photoWords = Self.keywords(from: photoDescription)
-        let scene = Self.scene(from: cleaned, photoWords: photoWords)
+        return DynamicTankaSuggestion(
+            upperPhrase: [upper, middle, lower],
+            lowerOptions: lowerOptions
+        )
+    }
 
-        switch tone {
+    private static func phraseBank(for timeTone: TimeTone, mood: DiaryTone, keyword: String) -> PhraseBank {
+        let moodUpper: [String]
+        let moodMiddle: [String]
+        let moodLower: [String]
+        let lowerFirst: [String]
+        let lowerSecond: [String]
+
+        switch mood {
         case .joy:
-            return [scene.opening, "胸の奥まで", "灯がともる"]
+            moodUpper = ["笑みひとつ", "胸の奥", "\(keyword)きらり"]
+            moodMiddle = ["小さな光", "今日は少し", "弾む足音"]
+            moodLower = ["花のよう", "星がほどけ", "頬に灯る"]
+            lowerFirst = ["うれしい余韻", "笑った声を", "胸の灯だけ"]
+            lowerSecond = ["袖にしまって", "夜へ連れてく", "花へほどける"]
         case .sorrow:
-            return [scene.opening, "声にならずに", "夜へ溶ける"]
+            moodUpper = ["ため息を", "\(keyword)かすむ", "言えぬまま"]
+            moodMiddle = ["窓辺にそっと", "静かな影が", "胸に残って"]
+            moodLower = ["月へゆく", "夜に沈む", "灯がにじむ"]
+            lowerFirst = ["さみしい気持ち", "泣けない夜を", "言えない言葉"]
+            lowerSecond = ["月が聞いてる", "そっと抱きしめ", "夜へ預ける"]
         case .calm:
-            return [scene.opening, "息をひとつ", "ほどいてく"]
+            moodUpper = ["息ひとつ", "\(keyword)やわく", "今日の端"]
+            moodMiddle = ["湯気のむこう", "静けさだけが", "風にほどけて"]
+            moodLower = ["ここにある", "ほどけてく", "明日へ向く"]
+            lowerFirst = ["安心ひとつ", "静かな今日を", "やさしい影を"]
+            lowerSecond = ["胸に灯して", "そっとたたんで", "袖にしまって"]
         case .anger:
-            return [scene.opening, "熱をしまって", "風を待つ"]
+            moodUpper = ["熱ひとつ", "\(keyword)赤く", "むっとして"]
+            moodMiddle = ["言葉の角を", "胸の火だけを", "風に預けて"]
+            moodLower = ["夜を待つ", "ほどいてく", "息をする"]
+            lowerFirst = ["怒ったわたし", "言葉の熱を", "尖った気持ち"]
+            lowerSecond = ["ちゃんと守ろう", "風に逃がして", "夜へほどいて"]
+        }
+
+        switch timeTone {
+        case .morning:
+            return PhraseBank(
+                upperPhrases: ["朝の窓", "白い息", "光さす", "\(keyword)ひかる"] + moodUpper,
+                middlePhrases: ["まだ名のない日", "カーテン揺れて", "新しい風"] + moodMiddle,
+                lowerPhrases: ["希望めく", "そっと始まる", "空がほどける"] + moodLower,
+                lowerFirst: ["今日のはじまり", "明るいほうへ", "まぶしい予感"] + lowerFirst,
+                lowerSecond: ["靴を鳴らして", "そっと歩き出す", "胸にしまって"] + lowerSecond
+            )
+        case .daytime:
+            return PhraseBank(
+                upperPhrases: ["昼の街", "風わたり", "陽のにおい", "\(keyword)映す"] + moodUpper,
+                middlePhrases: ["人波のなか", "眩しさのなか", "少し背伸びで"] + moodMiddle,
+                lowerPhrases: ["影が揺れ", "声が残る", "空へ抜ける"] + moodLower,
+                lowerFirst: ["今日のまんなか", "光の粒を", "歩いた跡を"] + lowerFirst,
+                lowerSecond: ["手のひらに置く", "そっと抱えて", "午後へ流して"] + lowerSecond
+            )
+        case .evening:
+            return PhraseBank(
+                upperPhrases: ["夕暮れに", "帰り道", "茜さす", "\(keyword)染まる"] + moodUpper,
+                middlePhrases: ["影が伸びゆく", "街灯ひとつ", "一日ほどけ"] + moodMiddle,
+                lowerPhrases: ["胸に灯る", "夜へ渡る", "頬を照らす"] + moodLower,
+                lowerFirst: ["今日の終わりを", "夕日の端で", "言葉の残り"] + lowerFirst,
+                lowerSecond: ["そっとたたんで", "夜へ手渡す", "胸にしまおう"] + lowerSecond
+            )
+        case .night:
+            return PhraseBank(
+                upperPhrases: ["夜の窓", "月あかり", "眠る街", "\(keyword)しずか"] + moodUpper,
+                middlePhrases: ["今日をほどいて", "灯りを落とし", "まぶたの裏に"] + moodMiddle,
+                lowerPhrases: ["夢へゆく", "息を休める", "星がにじむ"] + moodLower,
+                lowerFirst: ["おつかれさまと", "夜のしじまに", "今日のわたしを"] + lowerFirst,
+                lowerSecond: ["自分へ言おう", "そっと預ける", "やさしく眠る"] + lowerSecond
+            )
         }
     }
 
-    private static func scene(from fact: String, photoWords: [String]) -> (opening: String, object: String, place: String) {
-        let source = ([fact] + photoWords).joined(separator: " ")
-
-        let place: String
-        if source.contains("駅") || source.contains("電車") {
-            place = "駅の灯"
-        } else if source.contains("学校") || source.contains("授業") {
-            place = "教室の窓"
-        } else if source.contains("家") || source.contains("部屋") {
-            place = "部屋の灯"
-        } else if source.contains("カフェ") || source.contains("喫茶") {
-            place = "喫茶店"
-        } else if source.contains("道") || source.contains("帰") {
-            place = "帰り道"
-        } else {
-            place = ""
+    private static func timeTone(from date: Date) -> TimeTone {
+        let hour = Calendar.current.component(.hour, from: date)
+        switch hour {
+        case 5..<11: return .morning
+        case 11..<16: return .daytime
+        case 16..<20: return .evening
+        default: return .night
         }
-
-        let object: String
-        if source.contains("雨") || source.contains("濡") {
-            object = "雨粒"
-        } else if source.contains("空") || source.contains("青") {
-            object = "淡い空"
-        } else if source.contains("光") || source.contains("晴") || source.contains("明る") {
-            object = "光"
-        } else if source.contains("疲") || source.contains("眠") {
-            object = "重いまぶた"
-        } else if source.contains("友") || source.contains("話") {
-            object = "話し声"
-        } else if let photoWord = photoWords.first {
-            object = photoWord.shortPoemLine(limit: 5)
-        } else {
-            object = "今日の影"
-        }
-
-        let opening: String
-        if !place.isEmpty {
-            opening = "\(place)に".shortPoemLine(limit: 8)
-        } else {
-            opening = "\(object)ひとつ".shortPoemLine(limit: 8)
-        }
-
-        return (opening, object, place)
     }
 
-    private static func keywords(from photoDescription: String?) -> [String] {
-        guard let photoDescription, !photoDescription.isEmpty else { return [] }
+    private static func sceneKeyword(from request: AISuggestionRequest) -> String {
+        let source = [
+            request.photoDescription ?? "",
+            request.factInput,
+            request.weatherKeyword
+        ].joined(separator: " ")
 
-        return photoDescription
-            .components(separatedBy: CharacterSet(charactersIn: "、, /"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        if source.contains("駅") || source.contains("電車") { return "駅の灯" }
+        if source.contains("空") || source.contains("雲") || source.contains("青") { return "空" }
+        if source.contains("雨") || source.contains("濡") { return "雨粒" }
+        if source.contains("花") || source.contains("桜") { return "花びら" }
+        if source.contains("海") || source.contains("川") { return "水面" }
+        if source.contains("学校") || source.contains("授業") { return "教室" }
+        if source.contains("カフェ") || source.contains("喫茶") { return "珈琲" }
+        if source.contains("家") || source.contains("部屋") { return "部屋の灯" }
+        if let keyword = request.concreteKeywords.first {
+            return keyword.shortPoemLine(limit: 5)
+        }
+        return request.mood.defaultImageWord
     }
+
+    private static func pick(from phrases: [String], seed: Int, salt: Int) -> String {
+        guard !phrases.isEmpty else { return "" }
+        let index = abs(seed &+ salt &* 31) % phrases.count
+        return phrases[index]
+    }
+
+    private static func stableSeed(from text: String) -> Int {
+        text.unicodeScalars.reduce(5381) { partial, scalar in
+            ((partial << 5) &+ partial) &+ Int(scalar.value)
+        }
+    }
+}
+
+enum PhotoCaptureDateReader {
+    static func captureDate(from data: Data) -> Date? {
+        guard
+            let source = CGImageSourceCreateWithData(data as CFData, nil),
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        else {
+            return nil
+        }
+
+        let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any]
+        let tiff = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
+        let candidates = [
+            exif?[kCGImagePropertyExifDateTimeOriginal] as? String,
+            exif?[kCGImagePropertyExifDateTimeDigitized] as? String,
+            tiff?[kCGImagePropertyTIFFDateTime] as? String
+        ].compactMap { $0 }
+
+        for candidate in candidates {
+            if let date = exifDateFormatter.date(from: candidate) {
+                return date
+            }
+        }
+
+        return nil
+    }
+
+    private static let exifDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        return formatter
+    }()
 }
 
 enum WeatherVisualEffect: String, Hashable {
@@ -1453,6 +1601,26 @@ struct AISuggestionRequest {
     let mood: DiaryTone
     let weatherKeyword: String
     let musicMood: String
+    let photoTakenAt: Date?
+    let generationSeed: UUID
+
+    init(
+        photoDescription: String?,
+        factInput: String,
+        mood: DiaryTone,
+        weatherKeyword: String,
+        musicMood: String,
+        photoTakenAt: Date? = nil,
+        generationSeed: UUID = UUID()
+    ) {
+        self.photoDescription = photoDescription
+        self.factInput = factInput
+        self.mood = mood
+        self.weatherKeyword = weatherKeyword
+        self.musicMood = musicMood
+        self.photoTakenAt = photoTakenAt
+        self.generationSeed = generationSeed
+    }
 
     var systemPrompt: String {
         """
@@ -1554,34 +1722,7 @@ enum AIComposerGenerationError: LocalizedError {
 
 enum AILowerPhraseGenerator {
     static func options(request: AISuggestionRequest) -> [String] {
-        let sceneWord = request.concreteKeywords.first?.shortPoemLine(limit: 5) ?? request.mood.defaultImageWord
-
-        switch request.mood {
-        case .joy:
-            return [
-                "うれしい気持ち 花のようです",
-                "笑った声を 袖にしまった",
-                "\(sceneWord)さえ 星に見えてる"
-            ]
-        case .sorrow:
-            return [
-                "さみしい気持ち 月が聞いてる",
-                "泣けない夜を そっと抱きしめ",
-                "\(sceneWord)の影 夜に預ける"
-            ]
-        case .calm:
-            return [
-                "安心ひとつ 胸に灯して",
-                "静かな今日を そっとたたんで",
-                "\(sceneWord)みたいに 心ほどける"
-            ]
-        case .anger:
-            return [
-                "怒ったわたし ちゃんと守ろう",
-                "言葉の熱を 風に逃がして",
-                "\(sceneWord)越しに 深呼吸する"
-            ]
-        }
+        DynamicTankaPhraseEngine.generate(request: request).lowerOptions
     }
 }
 

@@ -189,12 +189,12 @@ struct MainTabView: View {
     @Binding var selectedTab: AppTab
     @Binding var savedCards: [DiaryCard]
     @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var mikujiGateway = MikujiGateway.shared
     @AppStorage("lastDiaryCreatedAt") private var lastDiaryCreatedAt = 0.0
     @AppStorage("utakataICloudSyncEnabled") private var iCloudSyncEnabled = false
     @State private var showingMorningOmikuji = false
     @State private var showingSettings = false
     @State private var showingComposer = false
-    @State private var didOfferOmikujiThisActivation = false
     @State private var isCloudSyncing = false
 
     var body: some View {
@@ -202,8 +202,16 @@ struct MainTabView: View {
             AppBackground()
 
             TabView(selection: $selectedTab) {
-                TodayView(savedCards: $savedCards, showsCreateButton: false, onOpenSettings: openSettings) { date in
+                TodayView(
+                    savedCards: $savedCards,
+                    showsCreateButton: false,
+                    canDrawMikuji: mikujiGateway.canDraw,
+                    mikujiStreak: mikujiGateway.streakCount,
+                    onOpenSettings: openSettings,
+                    onOpenMikuji: openMikuji
+                ) { date in
                     lastDiaryCreatedAt = date.timeIntervalSince1970
+                    mikujiGateway.markDiaryWritten(date)
                 }
                 .tabItem {
                     Label(AppTab.today.tabTitle, systemImage: AppTab.today.systemImage)
@@ -234,16 +242,19 @@ struct MainTabView: View {
 
         }
         .onAppear {
-            updateMorningOmikujiPresentation()
+            mikujiGateway.refresh(cards: savedCards)
+            refreshWidgetMemories()
             syncFromCloudIfNeeded(uploadLocalAfterFetch: false)
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                updateMorningOmikujiPresentation()
+                mikujiGateway.refresh(cards: savedCards)
+                refreshWidgetMemories()
                 syncFromCloudIfNeeded(uploadLocalAfterFetch: false)
-            } else {
-                didOfferOmikujiThisActivation = false
             }
+        }
+        .onChange(of: savedCards) { _, cards in
+            mikujiGateway.refresh(cards: cards)
         }
         .onChange(of: selectedTab) { old, new in
             if new == .dummy {
@@ -276,19 +287,21 @@ struct MainTabView: View {
         }
     }
 
-    private func updateMorningOmikujiPresentation() {
-        guard !didOfferOmikujiThisActivation, !showingMorningOmikuji else { return }
-        didOfferOmikujiThisActivation = true
-        showingMorningOmikuji = true
-    }
-
     private func openSettings() {
         showingSettings = true
     }
 
+    private func openMikuji() {
+        guard mikujiGateway.canDraw else { return }
+        mikujiGateway.markMikujiDrawn()
+        showingMorningOmikuji = true
+    }
+
     private func addDiaryCard(_ card: DiaryCard) {
         savedCards.insert(card, at: 0)
+        refreshWidgetMemories()
         lastDiaryCreatedAt = card.date.timeIntervalSince1970
+        mikujiGateway.markDiaryWritten(card.date)
         saveToCloudIfNeeded(card)
     }
 
@@ -338,6 +351,19 @@ struct MainTabView: View {
         }
 
         savedCards = cardsByID.values.sorted { $0.date > $1.date }
+        refreshWidgetMemories()
+        mikujiGateway.refresh(cards: savedCards)
+    }
+
+    private func refreshWidgetMemories() {
+        let widgetData = savedCards.map { card in
+            LatestTankaWidgetData(
+                id: card.id.uuidString,
+                tanka: (Array(card.upperPhrase.prefix(3)) + card.lowerPhrase.tankaWidgetLowerLines()).joined(separator: "\n"),
+                date: card.date
+            )
+        }
+        LatestTankaWidgetStore.saveAll(widgetData)
     }
 }
 
@@ -1240,6 +1266,9 @@ struct ScreenHeaderWithSettings: View {
     let title: String
     let subtitle: String
     let onOpenSettings: () -> Void
+    var canDrawMikuji = false
+    var mikujiStreak = 0
+    var onOpenMikuji: () -> Void = {}
 
     var body: some View {
         ZStack {
@@ -1247,10 +1276,65 @@ struct ScreenHeaderWithSettings: View {
 
             HStack {
                 Spacer()
+                if title == "日記" {
+                    MikujiShortcutButton(
+                        canDraw: canDrawMikuji,
+                        streakCount: mikujiStreak,
+                        action: onOpenMikuji
+                    )
+                }
                 SettingsShortcutButton(action: onOpenSettings)
             }
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+struct MikujiShortcutButton: View {
+    let canDraw: Bool
+    let streakCount: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack(alignment: .topTrailing) {
+                Circle()
+                    .fill(Color(hex: 0xFFF9F2).opacity(canDraw ? 0.94 : 0.64))
+                    .frame(width: 42, height: 42)
+                    .overlay(Circle().stroke(Color.meijiRed.opacity(canDraw ? 0.32 : 0.14), lineWidth: 0.9))
+                    .overlay(Circle().stroke(Color.retroGold.opacity(canDraw ? 0.42 : 0.20), lineWidth: 0.7).padding(4))
+                    .shadow(color: Color.meijiRed.opacity(canDraw ? 0.14 : 0.04), radius: 10, x: 0, y: 5)
+
+                Image(systemName: "scroll.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(canDraw ? Color.meijiRed : Color.secondaryText.opacity(0.42))
+
+                if canDraw {
+                    Circle()
+                        .fill(Color.meijiRed)
+                        .frame(width: 9, height: 9)
+                        .overlay(Circle().stroke(Color(hex: 0xFFF9F2), lineWidth: 1.6))
+                        .offset(x: 1, y: -1)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if canDraw && streakCount > 1 {
+                    Text("\(streakCount)日")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.retroPaper)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.meijiRed.opacity(0.92), in: Capsule())
+                        .overlay(Capsule().stroke(Color.retroGold.opacity(0.45), lineWidth: 0.7))
+                        .offset(y: 12)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(!canDraw)
+        .opacity(canDraw ? 1 : 0.78)
+        .accessibilityLabel(canDraw ? "うたかたみくじを引く" : "うたかたみくじは明日の朝に開きます")
     }
 }
 

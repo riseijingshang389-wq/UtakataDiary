@@ -13,11 +13,41 @@
 		6EE34EFB2FC6B283008EF693 /* Diary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFA2FC6B283008EF693 /* Diary.swift */; };
 		6EE34EFD2FC6B2B6008EF693 /* Memory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFC2FC6B2B6008EF693 /* Memory.swift */; };
 		6EE34EFF2FC9B52F008EF693 /* Setting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE34EFE2FC9B52F008EF693 /* Setting.swift */; };
+		6EF000012FDAB00100000001 /* FontManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EF000002FDAB00100000000 /* FontManager.swift */; };
+		6EF000032FDAB00100000003 /* MikujiGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EF000022FDAB00100000002 /* MikujiGateway.swift */; };
 		8A7F5B882C0A000100000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8A7F5B872C0A000100000001 /* Assets.xcassets */; };
 		9A0000012FD0000000000004 /* Resources/Fonts/ZenMaruGothic-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000001 /* Resources/Fonts/ZenMaruGothic-Regular.ttf */; };
 		9A0000012FD0000000000005 /* Resources/Fonts/Yomogi-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000002 /* Resources/Fonts/Yomogi-Regular.ttf */; };
 		9A0000012FD0000000000006 /* Resources/Fonts/SawarabiMincho-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A0000012FD0000000000003 /* Resources/Fonts/SawarabiMincho-Regular.ttf */; };
+		A10000022FD1000000000002 /* LatestTankaWidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000012FD1000000000001 /* LatestTankaWidgetStore.swift */; };
+		A10000032FD1000000000003 /* LatestTankaWidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000012FD1000000000001 /* LatestTankaWidgetStore.swift */; };
+		A10000052FD1000000000005 /* UtakataDiaryWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000042FD1000000000004 /* UtakataDiaryWidget.swift */; };
+		A10000092FD1000000000009 /* UtakataDiaryWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000082FD1000000000008 /* UtakataDiaryWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A10000192FD1000000000019 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8A7F5B722C0A000100000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000132FD1000000000013;
+			remoteInfo = UtakataDiaryWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A10000172FD1000000000017 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000092FD1000000000009 /* UtakataDiaryWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6E87B64C2FD1DA0600026FCF /* UtakataDiaryDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = UtakataDiaryDebug.entitlements; sourceTree = "<group>"; };
@@ -28,16 +58,30 @@
 		6EE34EFA2FC6B283008EF693 /* Diary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diary.swift; sourceTree = "<group>"; };
 		6EE34EFC2FC6B2B6008EF693 /* Memory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Memory.swift; sourceTree = "<group>"; };
 		6EE34EFE2FC9B52F008EF693 /* Setting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Setting.swift; sourceTree = "<group>"; };
+		6EF000002FDAB00100000000 /* FontManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontManager.swift; sourceTree = "<group>"; };
+		6EF000022FDAB00100000002 /* MikujiGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MikujiGateway.swift; sourceTree = "<group>"; };
 		8A7F5B7A2C0A000100000001 /* UtakataDiary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UtakataDiary.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A7F5B872C0A000100000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9A0000012FD0000000000001 /* Resources/Fonts/ZenMaruGothic-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Resources/Fonts/ZenMaruGothic-Regular.ttf"; sourceTree = "<group>"; };
 		9A0000012FD0000000000002 /* Resources/Fonts/Yomogi-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Resources/Fonts/Yomogi-Regular.ttf"; sourceTree = "<group>"; };
 		9A0000012FD0000000000003 /* Resources/Fonts/SawarabiMincho-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Resources/Fonts/SawarabiMincho-Regular.ttf"; sourceTree = "<group>"; };
 		9A0000012FD0000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000012FD1000000000001 /* LatestTankaWidgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestTankaWidgetStore.swift; sourceTree = "<group>"; };
+		A10000042FD1000000000004 /* UtakataDiaryWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtakataDiaryWidget.swift; sourceTree = "<group>"; };
+		A10000062FD1000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000072FD1000000000007 /* UtakataDiaryWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = UtakataDiaryWidget.entitlements; sourceTree = "<group>"; };
+		A10000082FD1000000000008 /* UtakataDiaryWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = UtakataDiaryWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		8A7F5B772C0A000100000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000102FD1000000000010 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -51,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				8A7F5B822C0A000100000001 /* UtakataDiary */,
+				A10000202FD1000000000020 /* UtakataDiaryWidget */,
 				8A7F5B7B2C0A000100000001 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -59,6 +104,7 @@
 			isa = PBXGroup;
 			children = (
 				8A7F5B7A2C0A000100000001 /* UtakataDiary.app */,
+				A10000082FD1000000000008 /* UtakataDiaryWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -69,6 +115,9 @@
 				6E87B64C2FD1DA0600026FCF /* UtakataDiaryDebug.entitlements */,
 				6E87B64D2FD1DA0600026FCF /* UtakataDiaryRelease.entitlements */,
 				6EA587A12FC2D65100B05C08 /* ContentView.swift */,
+				6EF000002FDAB00100000000 /* FontManager.swift */,
+				6EF000022FDAB00100000002 /* MikujiGateway.swift */,
+				A10000012FD1000000000001 /* LatestTankaWidgetStore.swift */,
 				6EE34EFE2FC9B52F008EF693 /* Setting.swift */,
 				6EE34EFC2FC6B2B6008EF693 /* Memory.swift */,
 				6EE34EFA2FC6B283008EF693 /* Diary.swift */,
@@ -83,6 +132,16 @@
 			path = UtakataDiary;
 			sourceTree = "<group>";
 		};
+		A10000202FD1000000000020 /* UtakataDiaryWidget */ = {
+			isa = PBXGroup;
+			children = (
+				A10000042FD1000000000004 /* UtakataDiaryWidget.swift */,
+				A10000062FD1000000000006 /* Info.plist */,
+				A10000072FD1000000000007 /* UtakataDiaryWidget.entitlements */,
+			);
+			path = UtakataDiaryWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -93,10 +152,12 @@
 				8A7F5B762C0A000100000001 /* Sources */,
 				8A7F5B772C0A000100000001 /* Frameworks */,
 				8A7F5B782C0A000100000001 /* Resources */,
+				A10000172FD1000000000017 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A10000182FD1000000000018 /* PBXTargetDependency */,
 			);
 			name = UtakataDiary;
 			packageProductDependencies = (
@@ -104,6 +165,25 @@
 			productName = UtakataDiary;
 			productReference = 8A7F5B7A2C0A000100000001 /* UtakataDiary.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A10000132FD1000000000013 /* UtakataDiaryWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000142FD1000000000014 /* Build configuration list for PBXNativeTarget "UtakataDiaryWidget" */;
+			buildPhases = (
+				A10000122FD1000000000012 /* Sources */,
+				A10000102FD1000000000010 /* Frameworks */,
+				A10000112FD1000000000011 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = UtakataDiaryWidget;
+			packageProductDependencies = (
+			);
+			productName = UtakataDiaryWidget;
+			productReference = A10000082FD1000000000008 /* UtakataDiaryWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -124,6 +204,10 @@
 							};
 						};
 					};
+					A10000132FD1000000000013 = {
+						CreatedOnToolsVersion = 26.4.1;
+						LastSwiftMigration = 2640;
+					};
 				};
 			};
 			buildConfigurationList = 8A7F5B752C0A000100000001 /* Build configuration list for PBXProject "UtakataDiary" */;
@@ -142,6 +226,7 @@
 			projectRoot = "";
 			targets = (
 				8A7F5B792C0A000100000001 /* UtakataDiary */,
+				A10000132FD1000000000013 /* UtakataDiaryWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -158,6 +243,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000112FD1000000000011 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -167,6 +259,9 @@
 			files = (
 				6EA587A32FC2D65100B05C08 /* ContentView.swift in Sources */,
 				6EA587A52FC2D65100B05C08 /* Omikuji.swift in Sources */,
+				6EF000012FDAB00100000001 /* FontManager.swift in Sources */,
+				6EF000032FDAB00100000003 /* MikujiGateway.swift in Sources */,
+				A10000022FD1000000000002 /* LatestTankaWidgetStore.swift in Sources */,
 				6EE34EFF2FC9B52F008EF693 /* Setting.swift in Sources */,
 				6EA587A42FC2D65100B05C08 /* UtakataDiaryApp.swift in Sources */,
 				6EE34EFD2FC6B2B6008EF693 /* Memory.swift in Sources */,
@@ -174,7 +269,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000122FD1000000000012 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000052FD1000000000005 /* UtakataDiaryWidget.swift in Sources */,
+				A10000032FD1000000000003 /* LatestTankaWidgetStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000182FD1000000000018 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000132FD1000000000013 /* UtakataDiaryWidget */;
+			targetProxy = A10000192FD1000000000019 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		8A7F5B8B2C0A000100000001 /* Debug */ = {
@@ -379,6 +491,67 @@
 			};
 			name = Release;
 		};
+		A10000152FD1000000000015 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = UtakataDiaryWidget/UtakataDiaryWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3UXCBB9H35;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = UtakataDiaryWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.risei.utakatadiary.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A10000162FD1000000000016 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = UtakataDiaryWidget/UtakataDiaryWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3UXCBB9H35;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = UtakataDiaryWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.risei.utakatadiary.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -396,6 +569,15 @@
 			buildConfigurations = (
 				8A7F5B902C0A000100000001 /* Debug */,
 				8A7F5B912C0A000100000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000142FD1000000000014 /* Build configuration list for PBXNativeTarget "UtakataDiaryWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000152FD1000000000015 /* Debug */,
+				A10000162FD1000000000016 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

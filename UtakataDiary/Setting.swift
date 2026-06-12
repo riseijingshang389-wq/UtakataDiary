@@ -48,19 +48,20 @@ enum UtakataFontStyle: String, CaseIterable, Identifiable {
     }
 
     static func retroMincho(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .custom("SawarabiMincho-Regular", size: size)
+        FontManager.persistedStyle.font(size: size, weight: weight)
     }
 
     static func rounded(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .custom("ZenMaruGothic-Regular", size: size)
+        FontManager.persistedStyle.font(size: size, weight: weight)
     }
 
     static func handLetter(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .custom("Yomogi-Regular", size: size)
+        FontManager.persistedStyle.font(size: size, weight: weight)
     }
 }
 
 struct Setting: View {
+    @EnvironmentObject private var fontManager: FontManager
     @AppStorage("utakataFontStyle") private var fontStyleRaw = UtakataFontStyle.mincho.rawValue
     @AppStorage("utakataDailyNotificationEnabled") private var notificationEnabled = false
     @AppStorage("utakataMorningNotificationEnabled") private var morningNotificationEnabled = false
@@ -76,7 +77,7 @@ struct Setting: View {
     @State private var notificationMessage = "朝のみくじと夜の日記作成をお知らせします。"
 
     private var selectedFont: UtakataFontStyle {
-        UtakataFontStyle(rawValue: fontStyleRaw) ?? .mincho
+        fontManager.selectedStyle
     }
 
     var body: some View {
@@ -127,7 +128,8 @@ struct Setting: View {
                             DisplayDesignSettingsScreen(
                                 selectedFont: selectedFont,
                                 fontStyleRaw: $fontStyleRaw,
-                                textSize: $textSize
+                                textSize: $textSize,
+                                onSelectFont: selectFont
                             )
                         } label: {
                             Text("表示とデザイン")
@@ -189,6 +191,11 @@ struct Setting: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
         }
+    }
+
+    private func selectFont(_ style: UtakataFontStyle) {
+        fontStyleRaw = style.rawValue
+        fontManager.setStyle(style)
     }
 
     private func setMorningReminderEnabled(_ isEnabled: Bool) {
@@ -421,6 +428,7 @@ struct DisplayDesignSettingsScreen: View {
     let selectedFont: UtakataFontStyle
     @Binding var fontStyleRaw: String
     @Binding var textSize: Double
+    let onSelectFont: (UtakataFontStyle) -> Void
 
     private var previewSize: CGFloat {
         switch Int(textSize) {
@@ -442,7 +450,7 @@ struct DisplayDesignSettingsScreen: View {
                 Section {
                     ForEach([UtakataFontStyle.mincho, .gothic, .handwritten]) { style in
                         Button {
-                            fontStyleRaw = style.rawValue
+                            onSelectFont(style)
                         } label: {
                             HStack {
                                 Text(style.title)

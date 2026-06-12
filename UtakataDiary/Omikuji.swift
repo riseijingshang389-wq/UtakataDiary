@@ -813,26 +813,101 @@ struct OmikujiFortune {
     let action: String
     let place: String
 
-    static func random() -> OmikujiFortune {
-        all.randomElement() ?? all[0]
+    private enum Mood: CaseIterable {
+        case bright
+        case calm
+        case romantic
+        case quiet
     }
 
-    static let all: [OmikujiFortune] = [
-        OmikujiFortune(fortune: "あはれ吉", explanationLines: ["窓辺に射す陽光は", "微睡む時の栞となり", "ささやかな慈しみが", "心に小さな灯をともす"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "小春吉", explanationLines: ["古い歌の調べが", "遠い日の記憶を呼び", "焦らずとも春は", "すぐそこにあります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "宵待吉", explanationLines: ["夕暮れの洋灯に", "願いの輪郭が灯り", "静かな帰り道で", "心はほどけます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "薄雲吉", explanationLines: ["薄雲の向こうには", "やわらかな返事があり", "急がぬ歩みほど", "美しく届きます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "乙女吉", explanationLines: ["古い歌の調べが", "遠い日の記憶を呼び", "柔らかな春は", "すぐそこにあります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "夕映吉", explanationLines: ["夕映えの頬には", "今日の頑張りが宿り", "小さな誇らしさが", "胸に赤く灯ります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "雨音吉", explanationLines: ["雨粒の音色には", "忘れた言葉がひそみ", "濡れた硝子越しに", "記憶がきらめきます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "星屑吉", explanationLines: ["眠る前の星屑が", "小さなご褒美となり", "明日のあなたへ", "静かに降り注ぎます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "花霞吉", explanationLines: ["霞む花の色にも", "今日だけの意味があり", "曖昧な気持ちほど", "やさしく残ります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "凪吉", explanationLines: ["凪いだ心の奥に", "きれいな余白が戻り", "何もしない時間が", "あなたを整えます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "硝子吉", explanationLines: ["透ける気持ちは", "隠さぬほど澄み渡り", "素直なひと言が", "美しく響きます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "鈴音吉", explanationLines: ["小さな鈴の音が", "見落とした合図となり", "ふとした返事から", "道は開けます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "月影吉", explanationLines: ["月影に沈む憂いも", "夜の飾りへ変わり", "言えない寂しさを", "静かに包みます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "初音吉", explanationLines: ["はじめの一言が", "思うより遠くへ届き", "まだ知らぬ縁を", "そっと結びます"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室"),
-        OmikujiFortune(fortune: "浪漫吉", explanationLines: ["昨日のため息さえ", "今日の物語に縫われ", "古い切符のように", "胸で光ります"], item: "硝子のインク瓶", action: "手紙を綴る", place: "洋館の図書室")
+    private struct Core {
+        let fortune: String
+        let explanationLines: [String]
+        let mood: Mood
+    }
+
+    private struct Element {
+        let text: String
+        let mood: Mood
+    }
+
+    static func random() -> OmikujiFortune {
+        let core = cores.randomElement() ?? cores[0]
+        return OmikujiFortune(
+            fortune: core.fortune,
+            explanationLines: core.explanationLines,
+            item: pick(from: items, mood: core.mood),
+            action: pick(from: actions, mood: core.mood),
+            place: pick(from: places, mood: core.mood)
+        )
+    }
+
+    private static func pick(from elements: [Element], mood: Mood) -> String {
+        let matched = elements.filter { $0.mood == mood }
+        return (matched.randomElement() ?? elements.randomElement())?.text ?? ""
+    }
+
+    private static let cores: [Core] = [
+        Core(fortune: "あはれ吉", explanationLines: ["窓辺に射す陽光は", "微睡む時の栞となり", "ささやかな慈しみが", "心に小さな灯をともす"], mood: .calm),
+        Core(fortune: "小春吉", explanationLines: ["古い歌の調べが", "遠い日の記憶を呼び", "焦らずとも春は", "すぐそこにあります"], mood: .bright),
+        Core(fortune: "宵待吉", explanationLines: ["夕暮れの洋灯に", "願いの輪郭が灯り", "静かな帰り道で", "心はほどけます"], mood: .romantic),
+        Core(fortune: "薄雲吉", explanationLines: ["薄雲の向こうには", "やわらかな返事があり", "急がぬ歩みほど", "美しく届きます"], mood: .calm),
+        Core(fortune: "乙女吉", explanationLines: ["古い歌の調べが", "遠い日の記憶を呼び", "柔らかな春は", "すぐそこにあります"], mood: .romantic),
+        Core(fortune: "夕映吉", explanationLines: ["夕映えの頬には", "今日の頑張りが宿り", "小さな誇らしさが", "胸に赤く灯ります"], mood: .bright),
+        Core(fortune: "雨音吉", explanationLines: ["雨粒の音色には", "忘れた言葉がひそみ", "濡れた硝子越しに", "記憶がきらめきます"], mood: .quiet),
+        Core(fortune: "星屑吉", explanationLines: ["眠る前の星屑が", "小さなご褒美となり", "明日のあなたへ", "静かに降り注ぎます"], mood: .quiet),
+        Core(fortune: "花霞吉", explanationLines: ["霞む花の色にも", "今日だけの意味があり", "曖昧な気持ちほど", "やさしく残ります"], mood: .romantic),
+        Core(fortune: "凪吉", explanationLines: ["凪いだ心の奥に", "きれいな余白が戻り", "何もしない時間が", "あなたを整えます"], mood: .calm),
+        Core(fortune: "硝子吉", explanationLines: ["透ける気持ちは", "隠さぬほど澄み渡り", "素直なひと言が", "美しく響きます"], mood: .bright),
+        Core(fortune: "鈴音吉", explanationLines: ["小さな鈴の音が", "見落とした合図となり", "ふとした返事から", "道は開けます"], mood: .bright),
+        Core(fortune: "月影吉", explanationLines: ["月影に沈む憂いも", "夜の飾りへ変わり", "言えない寂しさを", "静かに包みます"], mood: .quiet),
+        Core(fortune: "初音吉", explanationLines: ["はじめの一言が", "思うより遠くへ届き", "まだ知らぬ縁を", "そっと結びます"], mood: .bright),
+        Core(fortune: "浪漫吉", explanationLines: ["昨日のため息さえ", "今日の物語に縫われ", "古い切符のように", "胸で光ります"], mood: .romantic)
+    ]
+
+    private static let items: [Element] = [
+        Element(text: "硝子のインク瓶", mood: .calm),
+        Element(text: "白い便箋", mood: .calm),
+        Element(text: "薄荷の飴", mood: .calm),
+        Element(text: "真珠の髪留め", mood: .romantic),
+        Element(text: "リボンの栞", mood: .romantic),
+        Element(text: "花柄の小鏡", mood: .romantic),
+        Element(text: "金色の切符", mood: .bright),
+        Element(text: "小さな鈴", mood: .bright),
+        Element(text: "朝焼けの封筒", mood: .bright),
+        Element(text: "月色のハンカチ", mood: .quiet),
+        Element(text: "古い文庫本", mood: .quiet),
+        Element(text: "夜更けの紅茶", mood: .quiet)
+    ]
+
+    private static let actions: [Element] = [
+        Element(text: "手紙を綴る", mood: .calm),
+        Element(text: "深く息をする", mood: .calm),
+        Element(text: "窓辺で休む", mood: .calm),
+        Element(text: "好きと書く", mood: .romantic),
+        Element(text: "花を飾る", mood: .romantic),
+        Element(text: "遠回りする", mood: .romantic),
+        Element(text: "靴音を鳴らす", mood: .bright),
+        Element(text: "朝日を浴びる", mood: .bright),
+        Element(text: "笑顔で返す", mood: .bright),
+        Element(text: "夜の日記", mood: .quiet),
+        Element(text: "月を眺める", mood: .quiet),
+        Element(text: "灯を落とす", mood: .quiet)
+    ]
+
+    private static let places: [Element] = [
+        Element(text: "洋館の図書室", mood: .calm),
+        Element(text: "窓際の喫茶店", mood: .calm),
+        Element(text: "静かな文具店", mood: .calm),
+        Element(text: "薔薇の小径", mood: .romantic),
+        Element(text: "夕暮れの駅", mood: .romantic),
+        Element(text: "古い写真館", mood: .romantic),
+        Element(text: "朝の並木道", mood: .bright),
+        Element(text: "日差しのベランダ", mood: .bright),
+        Element(text: "花咲く広場", mood: .bright),
+        Element(text: "月明かりの部屋", mood: .quiet),
+        Element(text: "夜の書店", mood: .quiet),
+        Element(text: "雨音の路地", mood: .quiet)
     ]
 }
 
