@@ -1,9 +1,16 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
-struct UtakataShareImage: Identifiable {
+struct UtakataShareImagePayload: Identifiable, Transferable {
     let id = UUID()
-    let image: UIImage
+    let pngData: Data
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { payload in
+            payload.pngData
+        }
+    }
 }
 
 struct UtakataActivityView: UIViewControllerRepresentable {

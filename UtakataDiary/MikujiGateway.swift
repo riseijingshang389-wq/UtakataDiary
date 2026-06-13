@@ -48,11 +48,12 @@ final class MikujiGateway: ObservableObject {
 
         guard now >= fiveAM else { return false }
         guard let lastDiaryDay = storedDay(for: Key.lastDiaryDate) else { return false }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return false }
 
-        let hasWrittenYesterdayOrBefore = lastDiaryDay < today
+        let hasWrittenYesterday = lastDiaryDay == yesterday
         let hasNotDrawnToday = storedDay(for: Key.lastMikujiDate) != today
 
-        return hasWrittenYesterdayOrBefore && hasNotDrawnToday
+        return hasWrittenYesterday && hasNotDrawnToday
     }
 
     func hasDrawnToday(now: Date = Date()) -> Bool {

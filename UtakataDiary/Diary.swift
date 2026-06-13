@@ -726,7 +726,8 @@ struct DiaryComposerView: View {
     @State private var ambientContext = AmbientAIContext()
     @State private var composerNotice: ComposerNotice?
     @State private var generationSeed = UUID()
-    @State private var shareImage: UtakataShareImage?
+    @State private var shareImage: UtakataShareImagePayload?
+    @State private var isPreparingShareImage = false
 
     private var aiSuggestionRequest: AISuggestionRequest {
         AISuggestionRequest(
@@ -914,22 +915,50 @@ struct DiaryComposerView: View {
                         .disabled(isStoring)
                         .padding(.top, 2)
 
-                        Button {
-                            renderShareImage()
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "square.and.arrow.up")
-                                Text("うたかたの一筆箋でシェア")
+                        if let shareImage {
+                            ShareLink(
+                                item: shareImage,
+                                preview: SharePreview(
+                                    "うたかたの一筆箋",
+                                    image: Image(uiImage: UIImage(data: shareImage.pngData) ?? UIImage())
+                                )
+                            ) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "square.and.arrow.up.fill")
+                                    Text("シェア先を選ぶ")
+                                }
+                                .utakataFont(style: .button)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
                             }
-                            .utakataFont(style: .button)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.white)
+                            .background(Color.meijiRed, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.48), lineWidth: 1))
+                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                        } else {
+                            Button {
+                                prepareShareImage()
+                            } label: {
+                                HStack(spacing: 10) {
+                                    if isPreparingShareImage {
+                                        ProgressView()
+                                            .tint(Color.meijiRed)
+                                    } else {
+                                        Image(systemName: "square.and.arrow.up")
+                                    }
+                                    Text(isPreparingShareImage ? "一筆箋を準備中..." : "うたかたの一筆箋を作る")
+                                }
+                                .utakataFont(style: .button)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Color.meijiRed)
+                            .background(Color(hex: 0xFFF9F2).opacity(0.82), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.42), lineWidth: 1))
+                            .disabled(isStoring || isPreparingShareImage)
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Color.meijiRed)
-                        .background(Color(hex: 0xFFF9F2).opacity(0.82), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.42), lineWidth: 1))
-                        .disabled(isStoring)
                     }
 
                     Color.clear
@@ -1000,10 +1029,6 @@ struct DiaryComposerView: View {
         .task {
             ambientContext = await ContextManager.shared.currentContext()
         }
-        .sheet(item: $shareImage) { shareImage in
-            UtakataActivityView(items: [shareImage.image])
-                .presentationDetents([.medium, .large])
-        }
     }
 
     private func showComposerNotice(title: String, message: String, symbol: String) {
@@ -1040,24 +1065,43 @@ struct DiaryComposerView: View {
         }
     }
 
-    @MainActor
-    private func renderShareImage() {
-        guard let image = UtakataLetterShareRenderer.render(
-            upperPhrase: effectiveUpperPhrase,
-            lowerPhrase: effectiveLowerPhrase,
-            mood: selectedTone.mood,
-            photoData: photoData,
-            weatherEffect: ambientContext.weatherEffect
-        ) else {
-            showComposerNotice(
-                title: "一筆箋を作れませんでした",
-                message: "少し時間をおいて、もう一度シェアを試してください。",
-                symbol: "square.and.arrow.up"
-            )
-            return
-        }
+    private func prepareShareImage() {
+        guard !isPreparingShareImage else { return }
 
-        shareImage = UtakataShareImage(image: image)
+        shareImage = nil
+        isPreparingShareImage = true
+
+        Task {
+            await Task.yield()
+
+            guard let image = UtakataLetterShareRenderer.render(
+                upperPhrase: effectiveUpperPhrase,
+                lowerPhrase: effectiveLowerPhrase,
+                mood: selectedTone.mood,
+                photoData: photoData,
+                weatherEffect: ambientContext.weatherEffect
+            ),
+            let pngData = image.pngData(),
+            !pngData.isEmpty else {
+                await MainActor.run {
+                    isPreparingShareImage = false
+                    showComposerNotice(
+                        title: "一筆箋を作れませんでした",
+                        message: "画像の生成に失敗しました。少し時間をおいて、もう一度試してください。",
+                        symbol: "square.and.arrow.up"
+                    )
+                }
+                return
+            }
+
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    isPreparingShareImage = false
+                    shareImage = UtakataShareImagePayload(pngData: pngData)
+                    composerNotice = nil
+                }
+            }
+        }
     }
 
     private func makeCard() -> DiaryCard {
