@@ -1,31 +1,40 @@
 import SwiftUI
 
 enum UtakataFontRole {
+    case header
     case hero
     case title
     case headline
     case body
+    case date
     case caption
     case tanka
     case button
+    case menu
 
     var defaultSize: CGFloat {
         switch self {
+        case .header: return 32
         case .hero: return 34
         case .title: return 24
         case .headline: return 17
         case .body: return 15
+        case .date: return 13
         case .caption: return 12
         case .tanka: return 18
         case .button: return 16
+        case .menu: return 15
         }
     }
 
     var defaultWeight: Font.Weight {
         switch self {
+        case .header:
+            return .semibold
         case .hero, .title: return .semibold
         case .headline, .button: return .semibold
         case .body, .tanka: return .regular
+        case .date, .menu: return .semibold
         case .caption: return .medium
         }
     }
@@ -81,6 +90,14 @@ struct UtakataFontModifier: ViewModifier {
 }
 
 extension View {
+    func utakataFont(
+        style role: UtakataFontRole,
+        size: CGFloat? = nil,
+        weight: Font.Weight? = nil
+    ) -> some View {
+        modifier(UtakataFontModifier(role: role, size: size, weight: weight))
+    }
+
     func utakataFont(
         _ role: UtakataFontRole = .body,
         size: CGFloat? = nil,

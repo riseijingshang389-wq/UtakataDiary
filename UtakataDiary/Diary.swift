@@ -14,6 +14,7 @@ struct TodayView: View {
     @Binding var savedCards: [DiaryCard]
     var showsCreateButton = true
     var canDrawMikuji = false
+    var isMikujiDrawnToday = false
     var mikujiStreak = 0
     let onOpenSettings: () -> Void
     var onOpenMikuji: () -> Void = {}
@@ -46,6 +47,7 @@ struct TodayView: View {
                             subtitle: "カレンダー",
                             onOpenSettings: onOpenSettings,
                             canDrawMikuji: canDrawMikuji,
+                            isMikujiDrawnToday: isMikujiDrawnToday,
                             mikujiStreak: mikujiStreak,
                             onOpenMikuji: onOpenMikuji
                         )
@@ -691,7 +693,7 @@ struct EmptyDiaryHint: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             RetroRibbonLabel(text: "最初の一枚を作りましょう", tint: Color.meijiRed)
-            Text("写真と短歌が、現代版百人一首のカードとしてメモリーに残ります。")
+            Text("写真と短歌が、現代版百人一首のカードとして思い出に残ります。")
                 .font(.subheadline)
                 .foregroundStyle(Color.secondaryText)
         }
@@ -724,6 +726,7 @@ struct DiaryComposerView: View {
     @State private var ambientContext = AmbientAIContext()
     @State private var composerNotice: ComposerNotice?
     @State private var generationSeed = UUID()
+    @State private var shareImage: UtakataShareImage?
 
     private var aiSuggestionRequest: AISuggestionRequest {
         AISuggestionRequest(
@@ -910,6 +913,23 @@ struct DiaryComposerView: View {
                         .shadow(color: Color.meijiRed.opacity(0.22), radius: 14, x: 0, y: 8)
                         .disabled(isStoring)
                         .padding(.top, 2)
+
+                        Button {
+                            renderShareImage()
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("うたかたの一筆箋でシェア")
+                            }
+                            .utakataFont(style: .button)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.meijiRed)
+                        .background(Color(hex: 0xFFF9F2).opacity(0.82), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.42), lineWidth: 1))
+                        .disabled(isStoring)
                     }
 
                     Color.clear
@@ -980,6 +1000,10 @@ struct DiaryComposerView: View {
         .task {
             ambientContext = await ContextManager.shared.currentContext()
         }
+        .sheet(item: $shareImage) { shareImage in
+            UtakataActivityView(items: [shareImage.image])
+                .presentationDetents([.medium, .large])
+        }
     }
 
     private func showComposerNotice(title: String, message: String, symbol: String) {
@@ -1014,6 +1038,26 @@ struct DiaryComposerView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.02) {
             dismiss()
         }
+    }
+
+    @MainActor
+    private func renderShareImage() {
+        guard let image = UtakataLetterShareRenderer.render(
+            upperPhrase: effectiveUpperPhrase,
+            lowerPhrase: effectiveLowerPhrase,
+            mood: selectedTone.mood,
+            photoData: photoData,
+            weatherEffect: ambientContext.weatherEffect
+        ) else {
+            showComposerNotice(
+                title: "一筆箋を作れませんでした",
+                message: "少し時間をおいて、もう一度シェアを試してください。",
+                symbol: "square.and.arrow.up"
+            )
+            return
+        }
+
+        shareImage = UtakataShareImage(image: image)
     }
 
     private func makeCard() -> DiaryCard {

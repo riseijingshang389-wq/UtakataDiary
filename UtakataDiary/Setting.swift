@@ -154,6 +154,12 @@ struct Setting: View {
 
                     Section {
                         NavigationLink {
+                            UtakataGuideScreen()
+                        } label: {
+                            Text("使い方 / 情報")
+                                .foregroundStyle(Color.settingInk)
+                        }
+                        NavigationLink {
                             PolicyTextScreen(title: "利用規約", text: termsText)
                         } label: {
                             Text("利用規約")
@@ -175,20 +181,7 @@ struct Setting: View {
                 .tint(Color.meijiRed)
                 .padding(.bottom, 80)
             }
-            .navigationTitle("設定")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Color.meijiRed)
-                        Text("設定")
-                            .font(UtakataFontStyle.retroMincho(size: 24, weight: .semibold))
-                            .foregroundStyle(Color.settingInk)
-                    }
-                }
-            }
+            .utakataNavigationTitle("設定", systemImage: "gearshape")
             .toolbarBackground(.hidden, for: .navigationBar)
         }
     }
@@ -365,8 +358,7 @@ struct UserSettingsScreen: View {
             .scrollContentBackground(.hidden)
             .tint(Color.meijiRed)
         }
-        .navigationTitle("ユーザー設定")
-        .navigationBarTitleDisplayMode(.inline)
+        .utakataNavigationTitle("ユーザー設定")
     }
 }
 
@@ -419,8 +411,7 @@ struct NotificationSettingsScreen: View {
             .scrollContentBackground(.hidden)
             .tint(Color.meijiRed)
         }
-        .navigationTitle("通知設定")
-        .navigationBarTitleDisplayMode(.inline)
+        .utakataNavigationTitle("通知設定")
     }
 }
 
@@ -429,9 +420,27 @@ struct DisplayDesignSettingsScreen: View {
     @Binding var fontStyleRaw: String
     @Binding var textSize: Double
     let onSelectFont: (UtakataFontStyle) -> Void
+    @State private var draftFont: UtakataFontStyle
+    @State private var draftTextSize: Double
+    @State private var isDirty = false
+    @State private var didSave = false
+
+    init(
+        selectedFont: UtakataFontStyle,
+        fontStyleRaw: Binding<String>,
+        textSize: Binding<Double>,
+        onSelectFont: @escaping (UtakataFontStyle) -> Void
+    ) {
+        self.selectedFont = selectedFont
+        self._fontStyleRaw = fontStyleRaw
+        self._textSize = textSize
+        self.onSelectFont = onSelectFont
+        self._draftFont = State(initialValue: selectedFont)
+        self._draftTextSize = State(initialValue: textSize.wrappedValue)
+    }
 
     private var previewSize: CGFloat {
-        switch Int(textSize) {
+        switch Int(draftTextSize) {
         case 0: return 15
         case 2: return 23
         default: return 19
@@ -440,58 +449,144 @@ struct DisplayDesignSettingsScreen: View {
 
     var body: some View {
         StandardSettingsBackground {
-            List {
-                Section {
-                    LetterPreviewCard(selectedFont: selectedFont, previewSize: previewSize)
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 10, trailing: 20))
+            ZStack(alignment: .bottom) {
+                List {
+                    Section {
+                        LetterPreviewCard(selectedFont: draftFont, previewSize: previewSize)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 10, trailing: 20))
 
-                Section {
-                    ForEach([UtakataFontStyle.mincho, .gothic, .handwritten]) { style in
-                        Button {
-                            onSelectFont(style)
-                        } label: {
-                            HStack {
-                                Text(style.title)
-                                    .foregroundStyle(Color.settingInk)
-                                Spacer()
-                                if selectedFont == style {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(Color.meijiRed)
+                    Section {
+                        ForEach([UtakataFontStyle.mincho, .gothic, .handwritten]) { style in
+                            Button {
+                                updateDraftFont(style)
+                            } label: {
+                                HStack {
+                                    Text(style.title)
+                                        .foregroundStyle(Color.settingInk)
+                                    Spacer()
+                                    if draftFont == style {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(Color.meijiRed)
+                                    }
                                 }
                             }
+                            .buttonStyle(.plain)
+                        }
+                    } header: {
+                        SettingListHeader("書体")
+                    }
+                    .utakataGroupedRows()
+
+                    Section {
+                        HStack(alignment: .center, spacing: 14) {
+                            Text("A")
+                                .font(.footnote)
+                                .foregroundStyle(Color.settingInk.opacity(0.78))
+                            Slider(
+                                value: Binding(
+                                    get: { draftTextSize },
+                                    set: { updateDraftTextSize($0) }
+                                ),
+                                in: 0...2,
+                                step: 1
+                            )
+                            .tint(Color.settingGold)
+                            Text("A")
+                                .font(.title2)
+                                .foregroundStyle(Color.settingInk)
+                        }
+                        .padding(.vertical, 8)
+                    } header: {
+                        SettingListHeader("文字サイズ")
+                    }
+                    .utakataGroupedRows()
+                }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
+                .tint(Color.meijiRed)
+                .safeAreaPadding(.bottom, isDirty || didSave ? 92 : 12)
+
+                VStack(spacing: 10) {
+                    if didSave {
+                        Text("保存しました")
+                            .utakataFont(style: .caption, size: 12, weight: .semibold)
+                            .foregroundStyle(Color.settingInk)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Color(hex: 0xFFF9F2).opacity(0.94), in: Capsule())
+                            .overlay(Capsule().stroke(Color.settingGold.opacity(0.38), lineWidth: 0.8))
+                            .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    }
+
+                    if isDirty {
+                        Button {
+                            saveChanges()
+                        } label: {
+                            Text("保存")
+                                .utakataFont(style: .button, size: 16, weight: .semibold)
+                                .foregroundStyle(Color.retroPaper)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 15)
+                                .background(Color.meijiRed, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.retroGold.opacity(0.50), lineWidth: 1))
+                                .shadow(color: Color.meijiRed.opacity(0.22), radius: 14, x: 0, y: 8)
                         }
                         .buttonStyle(.plain)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)))
                     }
-                } header: {
-                    SettingListHeader("書体")
                 }
-                .utakataGroupedRows()
-
-                Section {
-                    HStack(alignment: .center, spacing: 14) {
-                        Text("A")
-                            .font(.footnote)
-                            .foregroundStyle(Color.settingInk.opacity(0.78))
-                        Slider(value: $textSize, in: 0...2, step: 1)
-                            .tint(Color.settingGold)
-                        Text("A")
-                            .font(.title2)
-                            .foregroundStyle(Color.settingInk)
-                    }
-                    .padding(.vertical, 8)
-                } header: {
-                    SettingListHeader("文字サイズ")
-                }
-                .utakataGroupedRows()
+                .padding(.horizontal, 22)
+                .padding(.bottom, 16)
+                .animation(.spring(response: 0.34, dampingFraction: 0.86), value: isDirty)
+                .animation(.easeInOut(duration: 0.22), value: didSave)
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .tint(Color.meijiRed)
         }
-        .navigationTitle("表示とデザイン")
-        .navigationBarTitleDisplayMode(.inline)
+        .utakataNavigationTitle("表示とデザイン")
+        .onAppear {
+            resetDraftToCurrentValues()
+        }
+    }
+
+    private func updateDraftFont(_ style: UtakataFontStyle) {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            draftFont = style
+            updateDirtyState()
+            didSave = false
+        }
+    }
+
+    private func updateDraftTextSize(_ value: Double) {
+        draftTextSize = value
+        updateDirtyState()
+        didSave = false
+    }
+
+    private func updateDirtyState() {
+        isDirty = draftFont.rawValue != fontStyleRaw || Int(draftTextSize) != Int(textSize)
+    }
+
+    private func resetDraftToCurrentValues() {
+        draftFont = selectedFont
+        draftTextSize = textSize
+        updateDirtyState()
+    }
+
+    private func saveChanges() {
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+            textSize = draftTextSize
+            fontStyleRaw = draftFont.rawValue
+            onSelectFont(draftFont)
+            isDirty = false
+            didSave = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25) {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                didSave = false
+            }
+        }
     }
 }
 
@@ -527,8 +622,344 @@ struct DataManagementSettingsScreen: View {
             .scrollContentBackground(.hidden)
             .tint(Color.meijiRed)
         }
-        .navigationTitle("データ管理")
-        .navigationBarTitleDisplayMode(.inline)
+        .utakataNavigationTitle("データ管理")
+    }
+}
+
+struct UtakataGuideScreen: View {
+    private let sections: [GuideSection] = [
+        GuideSection(
+            number: "一",
+            title: "日記を書く",
+            message: "日記画面の＋から、写真や一言をそっと入れます。長く書かなくても、その日の空気が短歌の札になります。",
+            preview: .diary
+        ),
+        GuideSection(
+            number: "二",
+            title: "翌朝のみくじ",
+            message: "前日に日記を書いていると、翌朝5時以降に小さなみくじの印が灯ります。押した時だけ、朝の儀式がはじまります。",
+            preview: .mikuji
+        ),
+        GuideSection(
+            number: "三",
+            title: "思い出をめくる",
+            message: "思い出画面では、札棚に残った日々をかるたのように眺められます。気になる札をタップして、裏側の気持ちをめくってください。",
+            preview: .memory
+        ),
+        GuideSection(
+            number: "四",
+            title: "一筆箋でわける",
+            message: "完成した札は、9:16の一筆箋画像として共有できます。誰かに送るというより、今日の余韻を小さく飾るための機能です。",
+            preview: .share
+        )
+    ]
+
+    var body: some View {
+        StandardSettingsBackground {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    VStack(spacing: 10) {
+                        Text("使い方 / 情報")
+                            .utakataFont(style: .header, size: 28, weight: .semibold)
+                            .foregroundStyle(Color.settingInk)
+
+                        Text("これは説明書というより、うたかた日記との待ち合わせの手紙です。迷った時だけ、そっと開いてください。")
+                            .utakataFont(style: .body, size: 14)
+                            .foregroundStyle(Color.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(5)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 22)
+
+                    ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                        if index.isMultiple(of: 2) {
+                            GuideStepCard(section: section)
+                            GuidePreviewCard(kind: section.preview)
+                        } else {
+                            GuidePreviewCard(kind: section.preview)
+                            GuideStepCard(section: section)
+                        }
+                    }
+
+                    GuideClosingLetter()
+                        .padding(.bottom, 40)
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .utakataNavigationTitle("使い方 / 情報")
+    }
+}
+
+struct GuideSection: Identifiable {
+    let id = UUID()
+    let number: String
+    let title: String
+    let message: String
+    let preview: GuidePreviewKind
+}
+
+enum GuidePreviewKind {
+    case diary
+    case mikuji
+    case memory
+    case share
+}
+
+struct GuideStepCard: View {
+    let section: GuideSection
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Text(section.number)
+                .utakataFont(style: .date, size: 15, weight: .bold)
+                .foregroundStyle(Color.retroPaper)
+                .frame(width: 34, height: 34)
+                .background(Color.meijiRed.opacity(0.88), in: Circle())
+                .overlay(Circle().stroke(Color.retroGold.opacity(0.58), lineWidth: 1))
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text(section.title)
+                    .utakataFont(style: .headline)
+                    .foregroundStyle(Color.settingInk)
+
+                Text(section.message)
+                    .utakataFont(style: .body, size: 13)
+                    .foregroundStyle(Color.secondaryText)
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(Color.settingPaper, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.settingLine, lineWidth: 0.9))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.settingGold.opacity(0.24), lineWidth: 0.7).padding(5))
+        .shadow(color: Color.meijiRed.opacity(0.06), radius: 10, x: 0, y: 5)
+    }
+}
+
+struct GuidePreviewCard: View {
+    let kind: GuidePreviewKind
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text(title)
+                    .utakataFont(style: .caption, size: 12, weight: .semibold)
+                    .foregroundStyle(Color.meijiRed.opacity(0.76))
+                Spacer()
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.retroGold)
+            }
+
+            preview
+        }
+        .padding(15)
+        .background {
+            ZStack {
+                Color.settingPaper
+                TaishoCheckPattern(color: Color.meijiRed.opacity(0.018), tile: 22)
+                WashiPattern()
+                    .opacity(0.10)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.settingLine, lineWidth: 0.85))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.settingGold.opacity(0.26), lineWidth: 0.7).padding(5))
+        .shadow(color: Color.meijiRed.opacity(0.06), radius: 10, x: 0, y: 5)
+    }
+
+    private var title: String {
+        switch kind {
+        case .diary: return "日記画面の見本"
+        case .mikuji: return "朝のみくじの見本"
+        case .memory: return "思い出画面の見本"
+        case .share: return "一筆箋の見本"
+        }
+    }
+
+    private var icon: String {
+        switch kind {
+        case .diary: return "calendar"
+        case .mikuji: return "scroll.fill"
+        case .memory: return "square.grid.3x3.fill"
+        case .share: return "square.and.arrow.up"
+        }
+    }
+
+    @ViewBuilder
+    private var preview: some View {
+        switch kind {
+        case .diary:
+            GuideDiaryMock()
+        case .mikuji:
+            GuideMikujiMock()
+        case .memory:
+            GuideMemoryMock()
+        case .share:
+            GuideShareMock()
+        }
+    }
+}
+
+struct GuideDiaryMock: View {
+    var body: some View {
+        VStack(spacing: 9) {
+            HStack {
+                Text("2026年6月")
+                    .utakataFont(style: .title, size: 18)
+                Spacer()
+                Circle()
+                    .fill(Color.meijiRed.opacity(0.86))
+                    .frame(width: 28, height: 28)
+                    .overlay(Image(systemName: "plus").font(.system(size: 13, weight: .bold)).foregroundStyle(.white))
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 7) {
+                ForEach(1...21, id: \.self) { day in
+                    Text("\(day)")
+                        .utakataFont(style: .date, size: 11)
+                        .foregroundStyle(day == 13 ? Color.retroPaper : Color.settingInk.opacity(0.78))
+                        .frame(width: 24, height: 24)
+                        .background(day == 13 ? Color.meijiRed.opacity(0.58) : Color.clear, in: Circle())
+                }
+            }
+        }
+        .padding(14)
+        .background(Color(hex: 0xFFF9F2).opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+struct GuideMikujiMock: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack(alignment: .topTrailing) {
+                Circle()
+                    .fill(Color(hex: 0xFFF9F2))
+                    .frame(width: 58, height: 58)
+                    .overlay(Circle().stroke(Color.settingGold.opacity(0.5), lineWidth: 1))
+                Image(systemName: "scroll.fill")
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(Color.meijiRed)
+                Circle()
+                    .fill(Color.meijiRed)
+                    .frame(width: 11, height: 11)
+                    .offset(x: -4, y: 4)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("翌朝だけ灯る印")
+                    .utakataFont(style: .headline, size: 15)
+                    .foregroundStyle(Color.settingInk)
+                Text("昨日の札がある朝、静かに待っています。")
+                    .utakataFont(style: .caption, size: 12)
+                    .foregroundStyle(Color.secondaryText)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(Color(hex: 0xFFF9F2).opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+struct GuideMemoryMock: View {
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 9), count: 3), spacing: 9) {
+            ForEach(0..<6, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: 0xFFF8EA), Color(hex: 0xE9D3D4).opacity(0.78), Color(hex: 0xD8E4EA).opacity(0.62)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(height: 76)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.settingGold.opacity(0.45), lineWidth: 0.8))
+                    .overlay {
+                        Text(index.isMultiple(of: 2) ? "雨あがる" : "夜の窓")
+                            .utakataFont(style: .tanka, size: 10)
+                            .foregroundStyle(Color.settingInk.opacity(0.78))
+                            .rotationEffect(.degrees(90))
+                    }
+            }
+        }
+        .padding(12)
+        .background(Color(hex: 0xFFF9F2).opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+struct GuideShareMock: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0xFFF9F2), Color(hex: 0xF4E4CB), Color.meijiRed.opacity(0.10)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 78, height: 138)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.settingGold.opacity(0.55), lineWidth: 1))
+                .overlay {
+                    VStack(spacing: 3) {
+                        Text("六月十三日")
+                            .utakataFont(style: .date, size: 8)
+                            .foregroundStyle(Color.secondaryText)
+                        Text("雨あがる\n駅前の光\nまだ淡く")
+                            .utakataFont(style: .tanka, size: 10)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(Color.settingInk)
+                    }
+                }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("9:16の一筆箋")
+                    .utakataFont(style: .headline, size: 15)
+                    .foregroundStyle(Color.settingInk)
+                Text("ストーリーにも、そのまま余韻を残せます。")
+                    .utakataFont(style: .caption, size: 12)
+                    .foregroundStyle(Color.secondaryText)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(Color(hex: 0xFFF9F2).opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+struct GuideClosingLetter: View {
+    var body: some View {
+        VStack(spacing: 9) {
+            PlumBlossom()
+                .fill(Color.meijiRed.opacity(0.52))
+                .frame(width: 18, height: 18)
+
+            Text("うたかた日記との向き合い方")
+                .utakataFont(style: .headline, size: 16)
+                .foregroundStyle(Color.settingInk)
+
+            Text("毎日を完璧に残そうとしなくて大丈夫です。ふと目に留まった光や、言葉になりきらない気持ちが一枚の札になれば、それだけで今日の記憶はちゃんとここにあります。")
+                .utakataFont(style: .body, size: 13)
+                .foregroundStyle(Color.secondaryText)
+                .multilineTextAlignment(.center)
+                .lineSpacing(5)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("通知やiCloud同期は、設定からいつでも変更できます。")
+                .utakataFont(style: .caption, size: 11)
+                .foregroundStyle(Color.secondaryText.opacity(0.72))
+                .padding(.top, 2)
+        }
+        .padding(18)
+        .background(Color.settingPaper, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.settingLine, lineWidth: 0.85))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.settingGold.opacity(0.24), lineWidth: 0.7).padding(5))
     }
 }
 
@@ -552,8 +983,42 @@ struct PolicyTextScreen: View {
             .scrollContentBackground(.hidden)
             .tint(Color.meijiRed)
         }
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
+        .utakataNavigationTitle(title)
+    }
+}
+
+struct UtakataNavigationTitle: View {
+    let title: String
+    let systemImage: String?
+
+    var body: some View {
+        HStack(spacing: 7) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.meijiRed.opacity(0.88))
+            }
+
+            Text(title)
+                .utakataFont(style: .title, size: 21, weight: .semibold)
+                .foregroundStyle(Color.settingInk)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+    }
+}
+
+private extension View {
+    func utakataNavigationTitle(_ title: String, systemImage: String? = nil) -> some View {
+        self
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    UtakataNavigationTitle(title: title, systemImage: systemImage)
+                }
+            }
     }
 }
 

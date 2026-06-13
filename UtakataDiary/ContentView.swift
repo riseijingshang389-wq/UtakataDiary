@@ -62,7 +62,7 @@ enum CardMood: String, CaseIterable, Hashable, Codable {
 enum AppTab: String, CaseIterable {
     case today = "日記"
     case dummy = "作成"
-    case memory = "メモリー"
+    case memory = "思い出"
 
     var systemImage: String {
         switch self {
@@ -76,7 +76,7 @@ enum AppTab: String, CaseIterable {
         switch self {
         case .today: return "ホーム"
         case .dummy: return ""
-        case .memory: return "メモリー"
+        case .memory: return "思い出"
         }
     }
 }
@@ -206,6 +206,7 @@ struct MainTabView: View {
                     savedCards: $savedCards,
                     showsCreateButton: false,
                     canDrawMikuji: mikujiGateway.canDraw,
+                    isMikujiDrawnToday: mikujiGateway.isDrawnToday,
                     mikujiStreak: mikujiGateway.streakCount,
                     onOpenSettings: openSettings,
                     onOpenMikuji: openMikuji
@@ -1267,6 +1268,7 @@ struct ScreenHeaderWithSettings: View {
     let subtitle: String
     let onOpenSettings: () -> Void
     var canDrawMikuji = false
+    var isMikujiDrawnToday = false
     var mikujiStreak = 0
     var onOpenMikuji: () -> Void = {}
 
@@ -1279,6 +1281,7 @@ struct ScreenHeaderWithSettings: View {
                 if title == "日記" {
                     MikujiShortcutButton(
                         canDraw: canDrawMikuji,
+                        isDrawnToday: isMikujiDrawnToday,
                         streakCount: mikujiStreak,
                         action: onOpenMikuji
                     )
@@ -1292,6 +1295,7 @@ struct ScreenHeaderWithSettings: View {
 
 struct MikujiShortcutButton: View {
     let canDraw: Bool
+    let isDrawnToday: Bool
     let streakCount: Int
     let action: () -> Void
 
@@ -1299,15 +1303,15 @@ struct MikujiShortcutButton: View {
         Button(action: action) {
             ZStack(alignment: .topTrailing) {
                 Circle()
-                    .fill(Color(hex: 0xFFF9F2).opacity(canDraw ? 0.94 : 0.64))
+                    .fill(Color(hex: 0xFFF9F2).opacity(canDraw ? 0.94 : (isDrawnToday ? 0.72 : 0.64)))
                     .frame(width: 42, height: 42)
-                    .overlay(Circle().stroke(Color.meijiRed.opacity(canDraw ? 0.32 : 0.14), lineWidth: 0.9))
-                    .overlay(Circle().stroke(Color.retroGold.opacity(canDraw ? 0.42 : 0.20), lineWidth: 0.7).padding(4))
-                    .shadow(color: Color.meijiRed.opacity(canDraw ? 0.14 : 0.04), radius: 10, x: 0, y: 5)
+                    .overlay(Circle().stroke(Color.meijiRed.opacity(canDraw ? 0.32 : (isDrawnToday ? 0.18 : 0.14)), lineWidth: 0.9))
+                    .overlay(Circle().stroke(Color.retroGold.opacity(canDraw ? 0.42 : (isDrawnToday ? 0.30 : 0.20)), lineWidth: 0.7).padding(4))
+                    .shadow(color: Color.meijiRed.opacity(canDraw ? 0.14 : (isDrawnToday ? 0.06 : 0.04)), radius: 10, x: 0, y: 5)
 
                 Image(systemName: "scroll.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(canDraw ? Color.meijiRed : Color.secondaryText.opacity(0.42))
+                    .foregroundStyle(canDraw ? Color.meijiRed : (isDrawnToday ? Color.meijiRed.opacity(0.42) : Color.secondaryText.opacity(0.42)))
 
                 if canDraw {
                     Circle()
@@ -1318,14 +1322,14 @@ struct MikujiShortcutButton: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if canDraw && streakCount > 1 {
-                    Text("\(streakCount)日")
+                if streakCount > 0 && (canDraw || isDrawnToday) {
+                    Text("×\(max(streakCount, 1))")
                         .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.retroPaper)
+                        .foregroundStyle(canDraw ? Color.retroPaper : Color.primaryText.opacity(0.62))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(Color.meijiRed.opacity(0.92), in: Capsule())
-                        .overlay(Capsule().stroke(Color.retroGold.opacity(0.45), lineWidth: 0.7))
+                        .background(canDraw ? Color.meijiRed.opacity(0.92) : Color(hex: 0xFFF9F2).opacity(0.86), in: Capsule())
+                        .overlay(Capsule().stroke(Color.retroGold.opacity(canDraw ? 0.45 : 0.34), lineWidth: 0.7))
                         .offset(y: 12)
                         .accessibilityHidden(true)
                 }
@@ -1333,8 +1337,20 @@ struct MikujiShortcutButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!canDraw)
-        .opacity(canDraw ? 1 : 0.78)
-        .accessibilityLabel(canDraw ? "うたかたみくじを引く" : "うたかたみくじは明日の朝に開きます")
+        .opacity(canDraw ? 1 : (isDrawnToday ? 0.58 : 0.78))
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        if canDraw {
+            return "うたかたみくじを引く"
+        }
+
+        if isDrawnToday {
+            return "今日のうたかたみくじは引き終わりました"
+        }
+
+        return "うたかたみくじは明日の朝に開きます"
     }
 }
 

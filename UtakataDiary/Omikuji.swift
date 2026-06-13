@@ -91,7 +91,7 @@ struct FortuneView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 24) {
-                HeaderView(title: "うたかたみくじ", subtitle: "未来メモリーの伏線")
+                HeaderView(title: "うたかたみくじ", subtitle: "未来の思い出の伏線")
 
                 ProphecyOmikujiCard()
 
@@ -1987,7 +1987,7 @@ struct ProphecyOmikujiCard: View {
             .foregroundStyle(Color.primaryText)
 
             HStack(spacing: 8) {
-                Label("未来のメモリー", systemImage: "sparkles")
+                Label("未来の思い出", systemImage: "sparkles")
                 Text("予言")
             }
             .font(.caption.weight(.bold))

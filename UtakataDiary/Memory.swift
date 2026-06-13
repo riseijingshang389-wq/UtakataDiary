@@ -32,7 +32,7 @@ struct MemoryView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
                     ScreenHeaderWithSettings(
-                        title: "メモリー",
+                        title: "思い出",
                         subtitle: "記憶のかるた",
                         onOpenSettings: onOpenSettings
                     )

@@ -8,6 +8,7 @@ final class MikujiGateway: ObservableObject {
     private let defaults: UserDefaults
 
     @Published private(set) var canDraw = false
+    @Published private(set) var isDrawnToday = false
     @Published private(set) var streakCount = 0
 
     private enum Key {
@@ -24,17 +25,20 @@ final class MikujiGateway: ObservableObject {
     }
 
     func refresh(cards: [DiaryCard], now: Date = Date()) {
+        isDrawnToday = hasDrawnToday(now: now)
         canDraw = canDrawMikuji(now: now)
         streakCount = continuousDiaryStreak(from: cards, now: now)
     }
 
     func markDiaryWritten(_ date: Date) {
         defaults.set(date.timeIntervalSince1970, forKey: Key.lastDiaryDate)
+        isDrawnToday = hasDrawnToday()
         canDraw = canDrawMikuji()
     }
 
     func markMikujiDrawn(now: Date = Date()) {
         defaults.set(calendar.startOfDay(for: now).timeIntervalSince1970, forKey: Key.lastMikujiDate)
+        isDrawnToday = true
         canDraw = canDrawMikuji(now: now)
     }
 
@@ -49,6 +53,10 @@ final class MikujiGateway: ObservableObject {
         let hasNotDrawnToday = storedDay(for: Key.lastMikujiDate) != today
 
         return hasWrittenYesterdayOrBefore && hasNotDrawnToday
+    }
+
+    func hasDrawnToday(now: Date = Date()) -> Bool {
+        storedDay(for: Key.lastMikujiDate) == calendar.startOfDay(for: now)
     }
 
     private func storedDay(for key: String) -> Date? {
