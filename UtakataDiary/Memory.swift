@@ -5,9 +5,12 @@ struct MemoryView: View {
     var showsCreateButton = true
     let onOpenSettings: () -> Void
     let onCreateDiary: (DiaryCard) -> Void
+    let onDeleteDiary: (DiaryCard) -> Void
     @State private var selectedCard: DiaryCard?
     @State private var isCardFlipped = false
     @State private var showingComposer = false
+    @State private var pendingDeleteCard: DiaryCard?
+    @State private var showsDeleteConfirmation = false
     @State private var visibleMonth = Date.now
     @Namespace private var cardNamespace
 
@@ -69,7 +72,11 @@ struct MemoryView: View {
                     card: selectedCard,
                     namespace: cardNamespace,
                     isFlipped: isCardFlipped,
-                    onClose: close
+                    onClose: close,
+                    onDelete: { card in
+                        pendingDeleteCard = card
+                        showsDeleteConfirmation = true
+                    }
                 )
                 .zIndex(20)
             }
@@ -80,6 +87,20 @@ struct MemoryView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        .confirmationDialog("この思い出を削除しますか？", isPresented: $showsDeleteConfirmation, titleVisibility: .visible) {
+            Button("削除する", role: .destructive) {
+                if let pendingDeleteCard {
+                    close()
+                    onDeleteDiary(pendingDeleteCard)
+                    self.pendingDeleteCard = nil
+                }
+            }
+            Button("キャンセル", role: .cancel) {
+                pendingDeleteCard = nil
+            }
+        } message: {
+            Text("削除したカードはアプリ内から消えます。")
         }
     }
 
@@ -198,6 +219,8 @@ struct KarutaShelfView: View {
                             .opacity(selectedCardID == card.id ? 0.08 : 1)
                     }
                     .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 156)
                 }
             }
         }
@@ -299,7 +322,7 @@ struct MiniOmikujiMemoryCard: View {
             }
             .padding(12)
         }
-        .aspectRatio(0.68, contentMode: .fit)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 13).stroke(Color.meijiRed.opacity(0.26), lineWidth: 0.9))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.retroGold.opacity(0.38), lineWidth: 0.7).padding(5))
@@ -453,6 +476,7 @@ struct MemoryCardOverlay: View {
     let namespace: Namespace.ID
     let isFlipped: Bool
     let onClose: () -> Void
+    let onDelete: (DiaryCard) -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -461,14 +485,34 @@ struct MemoryCardOverlay: View {
                     .ignoresSafeArea()
                     .onTapGesture(perform: onClose)
 
-                MemoryExpandedFlipCard(card: card, isFlipped: isFlipped)
-                    .matchedGeometryEffect(id: card.id, in: namespace)
-                    .frame(
-                        width: min(proxy.size.width * 0.74, 304),
-                        height: min(proxy.size.height * 0.64, 520)
-                    )
-                    .onTapGesture(perform: onClose)
-                    .shadow(color: Color.black.opacity(0.28), radius: 30, x: 0, y: 20)
+                VStack(spacing: 16) {
+                    MemoryExpandedFlipCard(card: card, isFlipped: isFlipped)
+                        .matchedGeometryEffect(id: card.id, in: namespace)
+                        .frame(
+                            width: min(proxy.size.width * 0.74, 304),
+                            height: min(proxy.size.height * 0.58, 500)
+                        )
+                        .onTapGesture(perform: onClose)
+                        .shadow(color: Color.black.opacity(0.28), radius: 30, x: 0, y: 20)
+
+                    DiaryCardImageShareButton(card: card)
+
+                    Button {
+                        onDelete(card)
+                    } label: {
+                        Label("削除", systemImage: "trash")
+                            .font(UtakataFontStyle.rounded(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.meijiRed)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color(hex: 0xFFF9F2).opacity(0.92), in: Capsule())
+                            .overlay(Capsule().stroke(Color.retroGold.opacity(0.42), lineWidth: 0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, max(proxy.safeAreaInsets.bottom + 24, 38))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding(.top, 18)
             }
         }
         .transition(.opacity)
@@ -940,40 +984,121 @@ struct MemoryPreviewCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 18) {
-            PoemCardView(
-                upperPhrase: card.upperPhrase,
-                lowerPhrase: card.lowerPhrase,
-                mood: card.mood,
-                compact: true,
-                photoData: card.photoData
-            )
-            .frame(width: 118, height: 180)
+        HStack(alignment: .center, spacing: 14) {
+            MemoryPreviewPhotoCard(card: card)
+            .frame(width: 96, height: 146)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text(card.date.memoryTitle)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.primaryText)
+            VStack(alignment: .leading, spacing: 8) {
                 Text("詠み人：\(authorName)")
                     .font(UtakataFontStyle.handLetter(size: 13, weight: .regular))
                     .foregroundStyle(Color.primaryText.opacity(0.58))
-                Text(card.upperPhrase.joined(separator: " / "))
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(Color.secondaryText)
-                    .lineLimit(2)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(card.upperPhrase.prefix(3).enumerated()), id: \.offset) { _, line in
+                        Text(line)
+                            .font(UtakataFontStyle.rounded(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.primaryText.opacity(0.88))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                }
+
                 Text(card.lowerPhrase)
-                    .font(.subheadline)
+                    .font(UtakataFontStyle.rounded(size: 13, weight: .medium))
                     .foregroundStyle(Color.secondaryText.opacity(0.82))
                     .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+
+                Text("タップして札をひらく")
+                    .font(UtakataFontStyle.rounded(size: 11, weight: .medium))
+                    .foregroundStyle(card.mood.accent.opacity(0.72))
             }
             Spacer(minLength: 0)
         }
-        .padding(18)
+        .padding(14)
         .background(Color.cardFill, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(.white.opacity(0.7), lineWidth: 1)
         )
+    }
+}
+
+struct MemoryPreviewPhotoCard: View {
+    let card: DiaryCard
+    private let photoWidth: CGFloat = 82
+    private let photoHeight: CGFloat = 116
+
+    private var selectedImage: Image? {
+        guard
+            let photoData = card.photoData,
+            let uiImage = UIImage(data: photoData)
+        else { return nil }
+
+        return Image(uiImage: uiImage)
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(hex: 0xFFF8EA),
+                            Color(hex: 0xF5E4C8),
+                            card.mood.accent.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            VStack(spacing: 0) {
+                ZStack {
+                    if let selectedImage {
+                        selectedImage
+                            .resizable()
+                            .scaledToFill()
+                            .saturation(0.88)
+                            .contrast(1.04)
+                    } else {
+                        LinearGradient(colors: card.mood.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                        WashiPattern()
+                            .opacity(0.22)
+                        Image(systemName: "photo")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundStyle(Color.retroPaper.opacity(0.78))
+                    }
+                }
+                .frame(width: photoWidth, height: photoHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primaryText.opacity(0.14), lineWidth: 0.8))
+                .clipped()
+
+                HStack {
+                    Text(card.date.karutaDay)
+                        .font(.caption2.monospacedDigit().weight(.bold))
+                        .foregroundStyle(card.mood.accent.opacity(0.82))
+                    Spacer()
+                    Circle()
+                        .fill(card.mood.accent.opacity(0.72))
+                        .frame(width: 6, height: 6)
+                }
+                .frame(width: photoWidth, height: 22)
+                .padding(.horizontal, 7)
+            }
+            .padding(7)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.primaryText.opacity(0.22), lineWidth: 0.9)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color.retroGold.opacity(0.35), lineWidth: 0.8)
+                .padding(7)
+        )
+        .shadow(color: Color(hex: 0x4B362B).opacity(0.14), radius: 12, x: 0, y: 7)
     }
 }
 

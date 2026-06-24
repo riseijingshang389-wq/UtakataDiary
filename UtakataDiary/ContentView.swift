@@ -33,6 +33,146 @@ struct DiaryCard: Identifiable, Hashable, Codable {
     }
 }
 
+extension DiaryCard {
+    var tankaLinesForSharing: [String] {
+        Array(upperPhrase.prefix(3)) + lowerPhrase.tankaWidgetLowerLines()
+    }
+
+    var shareText: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "yyyy年M月d日"
+        let dateText = formatter.string(from: date)
+        return """
+        \(dateText) のうたかた日記
+
+        \(tankaLinesForSharing.joined(separator: "\n"))
+
+        #うたかた日記
+        """
+    }
+}
+
+struct DiaryCardShareImage: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
+struct DiaryCardActivityView: UIViewControllerRepresentable {
+    let image: UIImage
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [image], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+struct DiaryCardImageShareButton: View {
+    let card: DiaryCard
+    var foregroundColor = Color.meijiBlue
+    @State private var isPreparing = false
+    @State private var shareImage: DiaryCardShareImage?
+    @State private var showsFailureAlert = false
+
+    var body: some View {
+        Button {
+            prepareShareImage()
+        } label: {
+            Label(isPreparing ? "準備中" : "共有", systemImage: isPreparing ? "hourglass" : "square.and.arrow.up")
+                .font(UtakataFontStyle.rounded(size: 12, weight: .semibold))
+                .foregroundStyle(foregroundColor.opacity(isPreparing ? 0.55 : 0.84))
+                .padding(.horizontal, 13)
+                .padding(.vertical, 8)
+                .background(Color(hex: 0xFFF9F2).opacity(0.82), in: Capsule())
+                .overlay(Capsule().stroke(Color.retroGold.opacity(0.34), lineWidth: 0.8))
+        }
+        .buttonStyle(.plain)
+        .disabled(isPreparing)
+        .accessibilityLabel("日記カードを画像で共有")
+        .sheet(item: $shareImage) { payload in
+            DiaryCardActivityView(image: payload.image)
+                .presentationDetents([.medium, .large])
+        }
+        .alert("画像を作れませんでした", isPresented: $showsFailureAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("少し時間をおいて、もう一度共有を試してください。")
+        }
+    }
+
+    @MainActor
+    private func prepareShareImage() {
+        guard !isPreparing else { return }
+        isPreparing = true
+
+        Task { @MainActor in
+            await Task.yield()
+
+            guard let image = renderShareImage() else {
+                isPreparing = false
+                showsFailureAlert = true
+                return
+            }
+
+            shareImage = DiaryCardShareImage(image: image)
+            isPreparing = false
+        }
+    }
+
+    @MainActor
+    private func renderShareImage() -> UIImage? {
+        let cardView = TankaOmikujiPreviewCard(
+            upperPhrase: card.upperPhrase,
+            lowerPhrase: card.lowerPhrase,
+            accent: card.mood.accent,
+            photoData: card.photoData,
+            weatherEffect: .none,
+            date: card.date
+        )
+        .frame(width: 300, height: 460)
+
+        let renderer = ImageRenderer(content: cardView)
+        renderer.scale = 3
+        renderer.proposedSize = ProposedViewSize(width: 300, height: 460)
+        return renderer.uiImage
+    }
+}
+
+enum DiaryCardLocalStore {
+    private static let fileName = "utakata-diary-cards.json"
+
+    private static var fileURL: URL {
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return directory.appendingPathComponent(fileName)
+    }
+
+    static func load() -> [DiaryCard] {
+        do {
+            let url = fileURL
+            guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+            let data = try Data(contentsOf: url)
+            return try JSONDecoder().decode([DiaryCard].self, from: data)
+                .sorted { $0.date > $1.date }
+        } catch {
+            print("Local diary load failed:", error.localizedDescription)
+            return []
+        }
+    }
+
+    static func save(_ cards: [DiaryCard]) {
+        do {
+            let directory = fileURL.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let data = try JSONEncoder().encode(cards.sorted { $0.date > $1.date })
+            try data.write(to: fileURL, options: [.atomic])
+        } catch {
+            print("Local diary save failed:", error.localizedDescription)
+        }
+    }
+}
+
 enum CardMood: String, CaseIterable, Hashable, Codable {
     case dawn, rain, evening, night
 
@@ -84,7 +224,7 @@ enum AppTab: String, CaseIterable {
 struct ContentView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var selectedTab: AppTab = .today
-    @State private var savedCards: [DiaryCard] = DiaryCard.samples
+    @State private var savedCards: [DiaryCard] = DiaryCardLocalStore.load()
 
     var body: some View {
         ZStack {
@@ -196,6 +336,8 @@ struct MainTabView: View {
     @State private var showingSettings = false
     @State private var showingComposer = false
     @State private var isCloudSyncing = false
+    @State private var currentOmikujiFortune = OmikujiFortune.random()
+    @State private var opensOmikujiResultImmediately = false
 
     var body: some View {
         ZStack {
@@ -209,7 +351,8 @@ struct MainTabView: View {
                     isMikujiDrawnToday: mikujiGateway.isDrawnToday,
                     mikujiStreak: mikujiGateway.streakCount,
                     onOpenSettings: openSettings,
-                    onOpenMikuji: openMikuji
+                    onOpenMikuji: openMikuji,
+                    onDeleteDiary: deleteDiaryCard
                 ) { date in
                     lastDiaryCreatedAt = date.timeIntervalSince1970
                     mikujiGateway.markDiaryWritten(date)
@@ -229,7 +372,8 @@ struct MainTabView: View {
                     cards: savedCards,
                     showsCreateButton: false,
                     onOpenSettings: openSettings,
-                    onCreateDiary: addDiaryCard
+                    onCreateDiary: addDiaryCard,
+                    onDeleteDiary: deleteDiaryCard
                 )
                 .tabItem {
                     Label(AppTab.memory.tabTitle, systemImage: AppTab.memory.systemImage)
@@ -269,7 +413,10 @@ struct MainTabView: View {
             }
         }
         .fullScreenCover(isPresented: $showingMorningOmikuji) {
-            MorningOmikujiDrawView {
+            MorningOmikujiDrawView(
+                fortune: currentOmikujiFortune,
+                startsWithResult: opensOmikujiResultImmediately
+            ) {
                 showingMorningOmikuji = false
             }
         }
@@ -293,17 +440,40 @@ struct MainTabView: View {
     }
 
     private func openMikuji() {
-        guard mikujiGateway.canDraw else { return }
-        mikujiGateway.markMikujiDrawn()
-        showingMorningOmikuji = true
+        if mikujiGateway.canDraw {
+            currentOmikujiFortune = OmikujiFortuneStore.todayFortune(createIfNeeded: true) ?? OmikujiFortune.random()
+            opensOmikujiResultImmediately = false
+            mikujiGateway.markMikujiDrawn()
+            showingMorningOmikuji = true
+            return
+        }
+
+        if mikujiGateway.isDrawnToday {
+            currentOmikujiFortune = OmikujiFortuneStore.todayFortune(createIfNeeded: true) ?? OmikujiFortune.random()
+            opensOmikujiResultImmediately = true
+            showingMorningOmikuji = true
+        }
     }
 
     private func addDiaryCard(_ card: DiaryCard) {
         savedCards.insert(card, at: 0)
+        persistLocalCards()
         refreshWidgetMemories()
         lastDiaryCreatedAt = card.date.timeIntervalSince1970
         mikujiGateway.markDiaryWritten(card.date)
         saveToCloudIfNeeded(card)
+    }
+
+    private func deleteDiaryCard(_ card: DiaryCard) {
+        savedCards.removeAll { $0.id == card.id }
+        persistLocalCards()
+        refreshWidgetMemories()
+        mikujiGateway.refresh(cards: savedCards)
+        deleteFromCloudIfNeeded(card)
+    }
+
+    private func persistLocalCards() {
+        DiaryCardLocalStore.save(savedCards)
     }
 
     private func saveToCloudIfNeeded(_ card: DiaryCard) {
@@ -314,6 +484,18 @@ struct MainTabView: View {
                 try await DiaryCloudSyncManager.shared.save(card: card)
             } catch {
                 print("iCloud sync save failed:", error.localizedDescription)
+            }
+        }
+    }
+
+    private func deleteFromCloudIfNeeded(_ card: DiaryCard) {
+        guard iCloudSyncEnabled else { return }
+
+        Task {
+            do {
+                try await DiaryCloudSyncManager.shared.delete(card: card)
+            } catch {
+                print("iCloud sync delete failed:", error.localizedDescription)
             }
         }
     }
@@ -352,6 +534,7 @@ struct MainTabView: View {
         }
 
         savedCards = cardsByID.values.sorted { $0.date > $1.date }
+        persistLocalCards()
         refreshWidgetMemories()
         mikujiGateway.refresh(cards: savedCards)
     }
@@ -431,6 +614,16 @@ final class DiaryCloudSyncManager {
 
         let record = try Self.record(from: card, recordType: recordType)
         _ = try await database.save(record)
+    }
+
+    func delete(card: DiaryCard) async throws {
+        let status = try await CKContainer.default().accountStatus()
+        guard status == .available else {
+            throw DiaryCloudSyncError.iCloudUnavailable
+        }
+
+        let recordID = CKRecord.ID(recordName: card.id.uuidString)
+        _ = try await database.deleteRecord(withID: recordID)
     }
 
     private static func record(from card: DiaryCard, recordType: String) throws -> CKRecord {
@@ -1300,18 +1493,20 @@ struct MikujiShortcutButton: View {
     let action: () -> Void
 
     var body: some View {
+        let isActionable = canDraw || isDrawnToday
+
         Button(action: action) {
             ZStack(alignment: .topTrailing) {
                 Circle()
-                    .fill(Color(hex: 0xFFF9F2).opacity(canDraw ? 0.94 : (isDrawnToday ? 0.72 : 0.64)))
+                    .fill(Color(hex: 0xFFF9F2).opacity(isActionable ? 0.96 : 0.64))
                     .frame(width: 42, height: 42)
-                    .overlay(Circle().stroke(Color.meijiRed.opacity(canDraw ? 0.32 : (isDrawnToday ? 0.18 : 0.14)), lineWidth: 0.9))
-                    .overlay(Circle().stroke(Color.retroGold.opacity(canDraw ? 0.42 : (isDrawnToday ? 0.30 : 0.20)), lineWidth: 0.7).padding(4))
-                    .shadow(color: Color.meijiRed.opacity(canDraw ? 0.14 : (isDrawnToday ? 0.06 : 0.04)), radius: 10, x: 0, y: 5)
+                    .overlay(Circle().stroke(Color.meijiRed.opacity(isActionable ? 0.32 : 0.14), lineWidth: 0.9))
+                    .overlay(Circle().stroke(Color.retroGold.opacity(isActionable ? 0.42 : 0.20), lineWidth: 0.7).padding(4))
+                    .shadow(color: Color.meijiRed.opacity(isActionable ? 0.14 : 0.04), radius: 10, x: 0, y: 5)
 
                 Image(systemName: "scroll.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(canDraw ? Color.meijiRed : (isDrawnToday ? Color.meijiRed.opacity(0.42) : Color.secondaryText.opacity(0.42)))
+                    .foregroundStyle(isActionable ? Color.meijiRed : Color.secondaryText.opacity(0.42))
 
                 if canDraw {
                     Circle()
@@ -1322,22 +1517,22 @@ struct MikujiShortcutButton: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if streakCount > 0 && (canDraw || isDrawnToday) {
+                if streakCount > 0 && isActionable {
                     Text("×\(max(streakCount, 1))")
                         .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(canDraw ? Color.retroPaper : Color.primaryText.opacity(0.62))
+                        .foregroundStyle(Color.retroPaper)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(canDraw ? Color.meijiRed.opacity(0.92) : Color(hex: 0xFFF9F2).opacity(0.86), in: Capsule())
-                        .overlay(Capsule().stroke(Color.retroGold.opacity(canDraw ? 0.45 : 0.34), lineWidth: 0.7))
+                        .background(Color.meijiRed.opacity(0.92), in: Capsule())
+                        .overlay(Capsule().stroke(Color.retroGold.opacity(0.45), lineWidth: 0.7))
                         .offset(y: 12)
                         .accessibilityHidden(true)
                 }
             }
         }
         .buttonStyle(.plain)
-        .disabled(!canDraw)
-        .opacity(canDraw ? 1 : (isDrawnToday ? 0.58 : 0.78))
+        .disabled(!canDraw && !isDrawnToday)
+        .opacity(isActionable ? 1 : 0.58)
         .accessibilityLabel(accessibilityLabel)
     }
 

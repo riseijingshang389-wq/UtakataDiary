@@ -3,6 +3,7 @@ import PhotosUI
 import UIKit
 import ImageIO
 import CoreLocation
+import AVFoundation
 #if canImport(WeatherKit)
 import WeatherKit
 #endif
@@ -18,6 +19,7 @@ struct TodayView: View {
     var mikujiStreak = 0
     let onOpenSettings: () -> Void
     var onOpenMikuji: () -> Void = {}
+    var onDeleteDiary: (DiaryCard) -> Void = { _ in }
     let onDiaryCreated: (Date) -> Void
     @State private var showingComposer = false
     @State private var selectedDate = Date.now
@@ -61,7 +63,8 @@ struct TodayView: View {
 
                         DiarySelectedDayLog(
                             date: selectedDate,
-                            cards: selectedCards
+                            cards: selectedCards,
+                            onDelete: onDeleteDiary
                         ) {
                             showingComposer = true
                         }
@@ -83,7 +86,7 @@ struct TodayView: View {
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingComposer) {
-                DiaryComposerView { card in
+                DiaryComposerView(targetDate: selectedDate) { card in
                     savedCards.insert(card, at: 0)
                     LatestTankaWidgetStore.save(date: card.date, upperPhrase: card.upperPhrase, lowerPhrase: card.lowerPhrase)
                     selectedDate = card.date
@@ -291,7 +294,11 @@ struct DiaryLargeCalendarDayCell: View {
 struct DiarySelectedDayLog: View {
     let date: Date
     let cards: [DiaryCard]
+    let onDelete: (DiaryCard) -> Void
     let onCreate: () -> Void
+    @State private var pendingDeleteCard: DiaryCard?
+    @State private var showsDeleteConfirmation = false
+    @State private var previewCard: DiaryCard?
 
     private var firstCard: DiaryCard? { cards.first }
 
@@ -309,22 +316,48 @@ struct DiarySelectedDayLog: View {
 
                 Spacer()
 
-                if cards.isEmpty {
-                    Button(action: onCreate) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Color.retroPaper)
-                            .frame(width: 36, height: 36)
-                            .background(Color.meijiRed, in: Circle())
-                    }
-                    .buttonStyle(.plain)
+                Button(action: onCreate) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(Color.retroPaper)
+                        .frame(width: 36, height: 36)
+                        .background(Color.meijiRed, in: Circle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(date.japaneseMonthDay)の日記を作成")
             }
 
             if !cards.isEmpty {
                 VStack(spacing: 12) {
                     ForEach(cards) { card in
-                        MemoryPreviewCard(card: card)
+                        VStack(spacing: 9) {
+                            Button {
+                                previewCard = card
+                            } label: {
+                                MemoryPreviewCard(card: card)
+                            }
+                            .buttonStyle(.plain)
+
+                            HStack(spacing: 10) {
+                                Spacer()
+                                DiaryCardImageShareButton(card: card)
+
+                                Button {
+                                    pendingDeleteCard = card
+                                    showsDeleteConfirmation = true
+                                } label: {
+                                    Label("削除", systemImage: "trash")
+                                        .font(UtakataFontStyle.rounded(size: 12, weight: .semibold))
+                                        .foregroundStyle(Color.meijiRed.opacity(0.76))
+                                        .padding(.horizontal, 13)
+                                        .padding(.vertical, 8)
+                                        .background(Color(hex: 0xFFF9F2).opacity(0.82), in: Capsule())
+                                        .overlay(Capsule().stroke(Color.retroGold.opacity(0.34), lineWidth: 0.8))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("日記を削除")
+                            }
+                        }
                     }
                 }
             } else {
@@ -345,6 +378,22 @@ struct DiarySelectedDayLog: View {
         }
         .padding(18)
         .taishoPanel(tint: firstCard?.mood.accent ?? Color.meijiRed)
+        .confirmationDialog("この日記カードを削除しますか？", isPresented: $showsDeleteConfirmation, titleVisibility: .visible) {
+            Button("削除する", role: .destructive) {
+                if let pendingDeleteCard {
+                    onDelete(pendingDeleteCard)
+                    self.pendingDeleteCard = nil
+                }
+            }
+            Button("キャンセル", role: .cancel) {
+                pendingDeleteCard = nil
+            }
+        } message: {
+            Text("削除したカードはアプリ内から消えます。")
+        }
+        .fullScreenCover(item: $previewCard) { card in
+            DiaryCardPreviewOverlay(card: card)
+        }
     }
 }
 
@@ -704,6 +753,7 @@ struct EmptyDiaryHint: View {
 }
 
 struct DiaryComposerView: View {
+    var targetDate = Date.now
     let onCreate: (DiaryCard) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -726,8 +776,6 @@ struct DiaryComposerView: View {
     @State private var ambientContext = AmbientAIContext()
     @State private var composerNotice: ComposerNotice?
     @State private var generationSeed = UUID()
-    @State private var shareImage: UtakataShareImagePayload?
-    @State private var isPreparingShareImage = false
 
     private var aiSuggestionRequest: AISuggestionRequest {
         AISuggestionRequest(
@@ -820,7 +868,7 @@ struct DiaryComposerView: View {
 
                         DiaryPhotoMenuButton(
                             photoData: photoData,
-                            onCameraTap: { showingCamera = true },
+                            onCameraTap: openCameraSafely,
                             onLibraryTap: { showingPhotoLibrary = true }
                         )
                     }
@@ -914,51 +962,6 @@ struct DiaryComposerView: View {
                         .shadow(color: Color.meijiRed.opacity(0.22), radius: 14, x: 0, y: 8)
                         .disabled(isStoring)
                         .padding(.top, 2)
-
-                        if let shareImage {
-                            ShareLink(
-                                item: shareImage,
-                                preview: SharePreview(
-                                    "うたかたの一筆箋",
-                                    image: Image(uiImage: UIImage(data: shareImage.pngData) ?? UIImage())
-                                )
-                            ) {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "square.and.arrow.up.fill")
-                                    Text("シェア先を選ぶ")
-                                }
-                                .utakataFont(style: .button)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.white)
-                            .background(Color.meijiRed, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.48), lineWidth: 1))
-                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                        } else {
-                            Button {
-                                prepareShareImage()
-                            } label: {
-                                HStack(spacing: 10) {
-                                    if isPreparingShareImage {
-                                        ProgressView()
-                                            .tint(Color.meijiRed)
-                                    } else {
-                                        Image(systemName: "square.and.arrow.up")
-                                    }
-                                    Text(isPreparingShareImage ? "一筆箋を準備中..." : "うたかたの一筆箋を作る")
-                                }
-                                .utakataFont(style: .button)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(Color.meijiRed)
-                            .background(Color(hex: 0xFFF9F2).opacity(0.82), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.retroGold.opacity(0.42), lineWidth: 1))
-                            .disabled(isStoring || isPreparingShareImage)
-                        }
                     }
 
                     Color.clear
@@ -1012,9 +1015,20 @@ struct DiaryComposerView: View {
         }
         .fullScreenCover(isPresented: $showingCamera) {
             CameraPicker { image in
-                photoData = image.diaryStorageJPEGData()
+                guard let resizedData = image.diaryStorageJPEGData() else {
+                    showComposerNotice(
+                        title: "写真を保存できませんでした",
+                        message: "撮影した写真の処理に失敗しました。もう一度撮るか、ライブラリから選択してください。",
+                        symbol: "camera"
+                    )
+                    showingCamera = false
+                    return
+                }
+
+                photoData = resizedData
                 photoTakenAt = Date()
                 generationSeed = UUID()
+                composerNotice = nil
                 showingCamera = false
             } onCancel: {
                 showingCamera = false
@@ -1034,6 +1048,48 @@ struct DiaryComposerView: View {
     private func showComposerNotice(title: String, message: String, symbol: String) {
         withAnimation(.easeInOut(duration: 0.2)) {
             composerNotice = ComposerNotice(title: title, message: message, symbol: symbol)
+        }
+    }
+
+    private func openCameraSafely() {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            showComposerNotice(
+                title: "カメラを使えません",
+                message: "この端末ではカメラ撮影が利用できません。写真ライブラリから選択してください。",
+                symbol: "camera"
+            )
+            return
+        }
+
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            showingCamera = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        showingCamera = true
+                    } else {
+                        showComposerNotice(
+                            title: "カメラの許可が必要です",
+                            message: "撮影するには、設定アプリでカメラの利用を許可してください。",
+                            symbol: "camera"
+                        )
+                    }
+                }
+            }
+        case .denied, .restricted:
+            showComposerNotice(
+                title: "カメラの許可が必要です",
+                message: "撮影するには、設定アプリでカメラの利用を許可してください。",
+                symbol: "camera"
+            )
+        @unknown default:
+            showComposerNotice(
+                title: "カメラを開けませんでした",
+                message: "少し時間をおいて、もう一度試してください。",
+                symbol: "camera"
+            )
         }
     }
 
@@ -1065,48 +1121,9 @@ struct DiaryComposerView: View {
         }
     }
 
-    private func prepareShareImage() {
-        guard !isPreparingShareImage else { return }
-
-        shareImage = nil
-        isPreparingShareImage = true
-
-        Task {
-            await Task.yield()
-
-            guard let image = UtakataLetterShareRenderer.render(
-                upperPhrase: effectiveUpperPhrase,
-                lowerPhrase: effectiveLowerPhrase,
-                mood: selectedTone.mood,
-                photoData: photoData,
-                weatherEffect: ambientContext.weatherEffect
-            ),
-            let pngData = image.pngData(),
-            !pngData.isEmpty else {
-                await MainActor.run {
-                    isPreparingShareImage = false
-                    showComposerNotice(
-                        title: "一筆箋を作れませんでした",
-                        message: "画像の生成に失敗しました。少し時間をおいて、もう一度試してください。",
-                        symbol: "square.and.arrow.up"
-                    )
-                }
-                return
-            }
-
-            await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    isPreparingShareImage = false
-                    shareImage = UtakataShareImagePayload(pngData: pngData)
-                    composerNotice = nil
-                }
-            }
-        }
-    }
-
     private func makeCard() -> DiaryCard {
         DiaryCard(
-            date: .now,
+            date: targetDate,
             upperPhrase: effectiveUpperPhrase,
             lowerPhrase: effectiveLowerPhrase,
             mood: selectedTone.mood,
@@ -2780,12 +2797,61 @@ struct CompletedTankaStep: View {
     }
 }
 
+struct DiaryCardPreviewOverlay: View {
+    let card: DiaryCard
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            AppBackground()
+            OmikujiPreDrawFantasyLayer()
+                .opacity(0.62)
+                .ignoresSafeArea()
+
+            VStack(spacing: 22) {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(Color.primaryText)
+                            .frame(width: 44, height: 44)
+                            .background(Color(hex: 0xFFF9F2).opacity(0.86), in: Circle())
+                            .overlay(Circle().stroke(Color.retroGold.opacity(0.38), lineWidth: 0.8))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+
+                Spacer(minLength: 0)
+
+                TankaOmikujiPreviewCard(
+                    upperPhrase: card.upperPhrase,
+                    lowerPhrase: card.lowerPhrase,
+                    accent: card.mood.accent,
+                    photoData: card.photoData,
+                    weatherEffect: .none,
+                    date: card.date
+                )
+                .frame(width: 300, height: 460)
+                .shadow(color: Color.primaryText.opacity(0.24), radius: 30, x: 0, y: 20)
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+}
+
 struct TankaOmikujiPreviewCard: View {
     let upperPhrase: [String]
     let lowerPhrase: String
     let accent: Color
     let photoData: Data?
     let weatherEffect: WeatherVisualEffect
+    var date = Date.now
     @AppStorage("utakataNickname") private var nickname = ""
 
     private var allLines: [String] {
@@ -2799,8 +2865,8 @@ struct TankaOmikujiPreviewCard: View {
 
     private var cardDateText: String {
         let calendar = Calendar(identifier: .gregorian)
-        let month = calendar.component(.month, from: .now)
-        let day = calendar.component(.day, from: .now)
+        let month = calendar.component(.month, from: date)
+        let day = calendar.component(.day, from: date)
         return "\(Self.japaneseNumber(month))月\(Self.japaneseNumber(day))日"
     }
 
@@ -3602,7 +3668,7 @@ struct CameraPicker: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.delegate = context.coordinator
-        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+        picker.sourceType = .camera
         return picker
     }
 

@@ -114,16 +114,27 @@ struct FortuneView: View {
 
 struct MorningOmikujiDrawView: View {
     let onClose: () -> Void
+    let fortune: OmikujiFortune
     @State private var isShaking = false
-    @State private var didDraw = false
+    @State private var didDraw: Bool
     @State private var stickOffset: CGFloat = 0
+
+    init(
+        fortune: OmikujiFortune = OmikujiFortune.random(),
+        startsWithResult: Bool = false,
+        onClose: @escaping () -> Void
+    ) {
+        self.fortune = fortune
+        self.onClose = onClose
+        _didDraw = State(initialValue: startsWithResult)
+    }
 
     var body: some View {
         ZStack {
             OmikujiPaperBackground()
 
             if didDraw {
-                OmikujiResultScreen(onClose: onClose)
+                OmikujiResultScreen(fortune: fortune, onClose: onClose)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
             } else {
                 OmikujiDrawStage(
@@ -536,9 +547,9 @@ struct OmikujiCardCornerOrnaments: Shape {
 }
 
 struct OmikujiResultScreen: View {
+    let fortune: OmikujiFortune
     let onClose: () -> Void
     @GestureState private var isPressingStart = false
-    @State private var fortune = OmikujiFortune.random()
 
     var body: some View {
         GeometryReader { proxy in
@@ -806,7 +817,7 @@ struct OmikujiHeader: View {
     }
 }
 
-struct OmikujiFortune {
+struct OmikujiFortune: Codable {
     let fortune: String
     let explanationLines: [String]
     let item: String
@@ -909,6 +920,38 @@ struct OmikujiFortune {
         Element(text: "夜の書店", mood: .quiet),
         Element(text: "雨音の路地", mood: .quiet)
     ]
+}
+
+enum OmikujiFortuneStore {
+    private static let fortuneKey = "utakataTodayOmikujiFortune"
+    private static let dateKey = "utakataTodayOmikujiFortuneDate"
+
+    static func todayFortune(createIfNeeded: Bool = true, now: Date = Date()) -> OmikujiFortune? {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let storedDay = Date(timeIntervalSince1970: UserDefaults.standard.double(forKey: dateKey))
+
+        if
+            calendar.isDate(storedDay, inSameDayAs: today),
+            let data = UserDefaults.standard.data(forKey: fortuneKey),
+            let fortune = try? JSONDecoder().decode(OmikujiFortune.self, from: data)
+        {
+            return fortune
+        }
+
+        guard createIfNeeded else { return nil }
+
+        let fortune = OmikujiFortune.random()
+        save(fortune, for: today)
+        return fortune
+    }
+
+    static func save(_ fortune: OmikujiFortune, for day: Date = Date()) {
+        guard let data = try? JSONEncoder().encode(fortune) else { return }
+        let today = Calendar.current.startOfDay(for: day)
+        UserDefaults.standard.set(today.timeIntervalSince1970, forKey: dateKey)
+        UserDefaults.standard.set(data, forKey: fortuneKey)
+    }
 }
 
 struct PassiveLogOmikujiCard: View {

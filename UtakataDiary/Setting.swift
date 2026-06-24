@@ -645,12 +645,6 @@ struct UtakataGuideScreen: View {
             title: "思い出をめくる",
             message: "思い出画面では、札棚に残った日々をかるたのように眺められます。気になる札をタップして、裏側の気持ちをめくってください。",
             preview: .memory
-        ),
-        GuideSection(
-            number: "四",
-            title: "一筆箋でわける",
-            message: "完成した札は、9:16の一筆箋画像として共有できます。誰かに送るというより、今日の余韻を小さく飾るための機能です。",
-            preview: .share
         )
     ]
 
@@ -704,7 +698,6 @@ enum GuidePreviewKind {
     case diary
     case mikuji
     case memory
-    case share
 }
 
 struct GuideStepCard: View {
@@ -778,7 +771,6 @@ struct GuidePreviewCard: View {
         case .diary: return "日記画面の見本"
         case .mikuji: return "朝のみくじの見本"
         case .memory: return "思い出画面の見本"
-        case .share: return "一筆箋の見本"
         }
     }
 
@@ -787,7 +779,6 @@ struct GuidePreviewCard: View {
         case .diary: return "calendar"
         case .mikuji: return "scroll.fill"
         case .memory: return "square.grid.3x3.fill"
-        case .share: return "square.and.arrow.up"
         }
     }
 
@@ -800,8 +791,6 @@ struct GuidePreviewCard: View {
             GuideMikujiMock()
         case .memory:
             GuideMemoryMock()
-        case .share:
-            GuideShareMock()
         }
     }
 }
@@ -889,46 +878,6 @@ struct GuideMemoryMock: View {
             }
         }
         .padding(12)
-        .background(Color(hex: 0xFFF9F2).opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-}
-
-struct GuideShareMock: View {
-    var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: 0xFFF9F2), Color(hex: 0xF4E4CB), Color.meijiRed.opacity(0.10)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 78, height: 138)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.settingGold.opacity(0.55), lineWidth: 1))
-                .overlay {
-                    VStack(spacing: 3) {
-                        Text("六月十三日")
-                            .utakataFont(style: .date, size: 8)
-                            .foregroundStyle(Color.secondaryText)
-                        Text("雨あがる\n駅前の光\nまだ淡く")
-                            .utakataFont(style: .tanka, size: 10)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(Color.settingInk)
-                    }
-                }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("9:16の一筆箋")
-                    .utakataFont(style: .headline, size: 15)
-                    .foregroundStyle(Color.settingInk)
-                Text("ストーリーにも、そのまま余韻を残せます。")
-                    .utakataFont(style: .caption, size: 12)
-                    .foregroundStyle(Color.secondaryText)
-            }
-            Spacer()
-        }
-        .padding(14)
         .background(Color(hex: 0xFFF9F2).opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
